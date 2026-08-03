@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0b1a17;
+}
+
+body {
+  font-family: var(--font-body), sans-serif;
+  color: #e7f2ed;
+}
+
+/* Faint PCB / circuit-trace pattern used behind the readout panel */
+.circuit-bg {
+  background-image:
+    linear-gradient(rgba(74, 222, 148, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 222, 148, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center;
+}
+
+.text-glow {
+  text-shadow: 0 0 18px rgba(74, 222, 148, 0.55), 0 0 48px rgba(74, 222, 148, 0.25);
+}
+
+.reduce-motion-safe {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Custom scrollbar to match theme */
+::selection {
+  background: rgba(74, 222, 148, 0.35);
+  color: #e7f2ed;
+}
