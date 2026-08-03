@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { 
@@ -64,12 +65,11 @@ export default function DataPenelitianPage() {
         ))}
       </div>
 
-      {/* Top Metrics */}
+      {/* Top Metrics — hanya 4 ini yang MagneticCard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 flex flex-col h-40 relative group overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-40 relative overflow-hidden">
           <div className="flex items-center gap-2 text-signal mb-2">
-            <Database size={20} />
+            <Database size={20} className="animate-float" />
             <h3 className="text-sm font-medium text-fog">Jumlah Data</h3>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -78,12 +78,11 @@ export default function DataPenelitianPage() {
             </div>
             <p className="text-[11px] text-muted mt-1 uppercase tracking-wider">titik data</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-40 relative group overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-40 relative overflow-hidden">
           <div className="flex items-center gap-2 text-signal mb-2">
-            <Clock size={20} />
+            <Clock size={20} className="animate-float" style={{ animationDelay: '0.3s' }} />
             <h3 className="text-sm font-medium text-fog">Interval</h3>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -93,12 +92,11 @@ export default function DataPenelitianPage() {
             </div>
             <p className="text-[11px] text-muted mt-1 uppercase tracking-wider">antar pengukuran</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-40 relative group overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-40 relative overflow-hidden">
           <div className="flex items-center gap-2 text-signal mb-2">
-            <ChartIcon size={20} />
+            <ChartIcon size={20} className="animate-float" style={{ animationDelay: '0.6s' }} />
             <h3 className="text-sm font-medium text-fog">Pearson r</h3>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -107,12 +105,11 @@ export default function DataPenelitianPage() {
             </div>
             <p className="text-[11px] text-muted mt-1 uppercase tracking-wider">korelasi kuat negatif</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-40 relative group overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-40 relative overflow-hidden">
           <div className="flex items-center gap-2 text-signal mb-2">
-            <Target size={20} />
+            <Target size={20} className="animate-float" style={{ animationDelay: '0.9s' }} />
             <h3 className="text-sm font-medium text-fog">R² Regresi</h3>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -121,10 +118,10 @@ export default function DataPenelitianPage() {
             </div>
             <p className="text-[11px] text-muted mt-1 uppercase tracking-wider">good fit</p>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
 
-      {/* Charts */}
+      {/* Charts — pakai Card biasa */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-1">
@@ -183,7 +180,7 @@ export default function DataPenelitianPage() {
         </Card>
       </div>
 
-      {/* Bottom Section */}
+      {/* Bottom Section — pakai Card biasa */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Data Table */}
         <Card className="p-6">
