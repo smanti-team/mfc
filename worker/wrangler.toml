@@ -1,0 +1,15 @@
+name = "mfc-d1-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# The origin(s) allowed to call this API. Add your deployed site URL(s) here,
+# separated by commas, e.g. "https://smartmfc.pages.dev,http://localhost:3000"
+[vars]
+ALLOWED_ORIGINS = "https://b-brave.sman3-mataram.sch.id"
+
+# Bind your existing D1 database. Replace database_name and database_id
+# with the values from `wrangler d1 list`.
+[[d1_databases]]
+binding = "DB"
+database_name = "mfc"
+database_id = "b01b27de-bb0a-4364-a790-897e54d06354"
