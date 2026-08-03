@@ -4,6 +4,8 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ParticleBackground from "@/components/ParticleBackground";
+import CustomCursor from "@/components/CustomCursor";
+import MouseSpotlight from "@/components/MouseSpotlight";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -32,7 +34,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${mono.variable} ${body.variable}`}>
-      <body className="bg-ink text-fog antialiased min-h-screen flex flex-col relative">
+      <body className="bg-ink text-fog antialiased min-h-screen flex flex-col relative" style={{ cursor: 'none' }}>
+        <CustomCursor />
+        <MouseSpotlight />
         <ParticleBackground />
         <div className="relative z-10 flex flex-col min-h-screen">
           <Header />

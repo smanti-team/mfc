@@ -5,6 +5,10 @@
   color-scheme: dark;
 }
 
+*, *::before, *::after {
+  cursor: none !important;
+}
+
 html,
 body {
   background-color: #0b1a17;
@@ -44,4 +48,38 @@ body {
 ::selection {
   background: rgba(74, 222, 148, 0.35);
   color: #e7f2ed;
+}
+
+/* Float animation for icons */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(3deg); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1a17;
+}
+::-webkit-scrollbar-thumb {
+  background: #22403a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4ade94;
 }

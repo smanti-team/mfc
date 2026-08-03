@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchSummary } from "@/lib/api";
 import type { Summary } from "@/lib/types";
+import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { 
@@ -79,10 +80,9 @@ export default function Home() {
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20 hover:border-signal/50 transition-colors">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-signal/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
           <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
-            <SunDim size={18} strokeWidth={2.5} />
+            <SunDim size={18} strokeWidth={2.5} className="animate-float" />
             <h3 className="text-[13px] font-medium text-fog">TDS Saat Ini</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
@@ -92,12 +92,11 @@ export default function Home() {
             </div>
             <p className="text-[11px] text-muted mt-2 tracking-wide">Total Padatan Terlarut</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20 hover:border-signal/50 transition-colors">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-signal/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
           <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
-            <Zap size={18} strokeWidth={2.5} />
+            <Zap size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.3s' }} />
             <h3 className="text-[13px] font-medium text-fog">Tegangan MFC</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
@@ -107,12 +106,11 @@ export default function Home() {
             </div>
             <p className="text-[11px] text-muted mt-2 tracking-wide">Tegangan yang dihasilkan</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20 hover:border-signal/50 transition-colors">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-signal/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
           <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
-            <Hourglass size={18} strokeWidth={2.5} />
+            <Hourglass size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.6s' }} />
             <h3 className="text-[13px] font-medium text-fog">Prediksi Sisa Waktu</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
@@ -122,12 +120,11 @@ export default function Home() {
             </div>
             <p className="text-[11px] text-muted mt-2 tracking-wide">Perkiraan hingga target tercapai</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20 hover:border-signal/50 transition-colors">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-signal/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
           <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
-            <Activity size={18} strokeWidth={2.5} />
+            <Activity size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.9s' }} />
             <h3 className="text-[13px] font-medium text-fog">Status Pengolahan</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
@@ -137,7 +134,7 @@ export default function Home() {
             </div>
             <p className="text-[11px] text-muted mt-3 tracking-wide">Sistem beroperasi normal</p>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
 
       {/* Info Bar */}
