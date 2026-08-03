@@ -106,4 +106,3 @@ with a CORS error.
   in `tailwind.config.ts`.
 - No data is written from the browser — this is a read-only dashboard.
 
-pp
