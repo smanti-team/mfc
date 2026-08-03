@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import MagneticCard from "@/components/MagneticCard";
+import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { 
   Download, Database, Clock, LineChart as ChartIcon, Target, 
@@ -64,7 +65,7 @@ export default function DataPenelitianPage() {
         ))}
       </div>
 
-      {/* Top Metrics */}
+      {/* Top Metrics — hanya 4 ini yang MagneticCard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MagneticCard className="p-6 flex flex-col h-40 relative overflow-hidden">
           <div className="flex items-center gap-2 text-signal mb-2">
@@ -120,9 +121,9 @@ export default function DataPenelitianPage() {
         </MagneticCard>
       </div>
 
-      {/* Charts */}
+      {/* Charts — pakai Card biasa */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <MagneticCard className="p-6">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-display font-medium text-fog text-lg">Grafik TDS Penelitian</h3>
           </div>
@@ -148,9 +149,9 @@ export default function DataPenelitianPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </MagneticCard>
+        </Card>
 
-        <MagneticCard className="p-6">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-display font-medium text-fog text-lg">Grafik Tegangan Penelitian</h3>
           </div>
@@ -176,13 +177,13 @@ export default function DataPenelitianPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </MagneticCard>
+        </Card>
       </div>
 
-      {/* Bottom Section */}
+      {/* Bottom Section — pakai Card biasa */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Data Table */}
-        <MagneticCard className="p-6">
+        <Card className="p-6">
           <h3 className="font-display font-medium text-fog text-lg mb-4">Raw Data 3 Jam</h3>
           
           <div className="overflow-x-auto">
@@ -216,10 +217,10 @@ export default function DataPenelitianPage() {
               </tbody>
             </table>
           </div>
-        </MagneticCard>
+        </Card>
 
         {/* Linear Regression */}
-        <MagneticCard className="p-6">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <ChartIcon className="text-signal" size={18} />
             <h3 className="font-display font-medium text-fog text-lg">Analisis Regresi Linier</h3>
@@ -256,7 +257,7 @@ export default function DataPenelitianPage() {
               <div className="font-medium text-signal">0.89 (89%)</div>
             </div>
           </div>
-        </MagneticCard>
+        </Card>
       </div>
 
       <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-line bg-panel/30 text-muted text-sm">

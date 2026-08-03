@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import MagneticCard from "@/components/MagneticCard";
+import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { 
   Database, CheckCircle2, RefreshCcw, Clock, ArrowRight, ArrowDownRight, 
@@ -105,7 +106,7 @@ export default function RiwayatPage() {
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Table Section */}
-        <MagneticCard className="lg:col-span-2 p-6" tiltStrength={5} magnetStrength={3}>
+        <Card className="lg:col-span-2 p-6">
           <div className="flex items-center gap-2 mb-6">
             <CalendarDays className="text-signal" size={18} />
             <h3 className="font-display font-medium text-fog">Riwayat Batch Terbaru</h3>
@@ -162,11 +163,11 @@ export default function RiwayatPage() {
               Selanjutnya <ChevronRight size={16} />
             </button>
           </div>
-        </MagneticCard>
+        </Card>
 
         {/* Sidebar Details & Chart */}
         <div className="flex flex-col gap-6">
-          <MagneticCard className="p-6">
+          <Card className="p-6">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="text-signal" size={18} />
@@ -230,9 +231,9 @@ export default function RiwayatPage() {
             <button className="w-full mt-6 py-2.5 rounded-lg border border-signal text-signal hover:bg-signal/10 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
               <Activity size={16} /> Lihat Grafik
             </button>
-          </MagneticCard>
+          </Card>
 
-          <MagneticCard className="p-6">
+          <Card className="p-6">
             <div className="flex items-center gap-2 mb-6">
               <Activity className="text-signal" size={18} />
               <h3 className="font-display font-medium text-fog">Penurunan TDS per Batch</h3>
@@ -258,7 +259,7 @@ export default function RiwayatPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </MagneticCard>
+          </Card>
         </div>
       </div>
     </div>
