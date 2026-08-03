@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import Card from "@/components/Card";
+import MagneticCard from "@/components/MagneticCard";
 import { 
   FlaskConical, Zap, Droplet, Monitor, Leaf, Cpu, Wifi,
   Activity, ArrowRight, ShieldCheck, Target, Users
@@ -27,46 +27,45 @@ export default function TentangPage() {
         </div>
 
         {/* Process Diagram */}
-        <Card className="flex flex-col justify-center h-full p-8 relative overflow-hidden group">
+        <MagneticCard className="flex flex-col justify-center h-full p-8 relative overflow-hidden" tiltStrength={8} magnetStrength={4}>
           <div className="absolute top-0 right-0 w-64 h-64 bg-signal/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
           <h3 className="text-sm font-medium text-fog mb-8">Alur Proses SMART-MFC</h3>
           
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative z-10">
             <div className="flex flex-col items-center text-center group/item">
-              <FlaskConical className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] transition-transform group-hover/item:scale-110" size={40} strokeWidth={1.5} />
+              <FlaskConical className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] animate-float-slow" size={40} strokeWidth={1.5} />
               <p className="text-[11px] text-muted max-w-[90px] leading-relaxed">Limbah Cair Organik Masuk</p>
             </div>
             <ArrowRight className="text-signal/30 hidden sm:block mt-4" size={20} />
             <div className="flex flex-col items-center text-center group/item">
-              <div className="relative mb-4 transition-transform group-hover/item:scale-110">
-                <ShieldCheck className="text-signal drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] relative z-10" size={40} strokeWidth={1.5} />
-                <div className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-electrode animate-pulseDot shadow-[0_0_8px_#F2B84B]"></div>
+              <div className="relative mb-4">
+                <ShieldCheck className="text-signal drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] relative z-10 animate-float-slow" size={40} strokeWidth={1.5} style={{ animationDelay: '0.5s' }} />
+                <div className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-electrode animate-pulse shadow-[0_0_8px_#F2B84B]"></div>
               </div>
               <p className="text-[11px] text-muted max-w-[90px] leading-relaxed">Bakteri Menguraikan Bahan Organik</p>
             </div>
             <ArrowRight className="text-signal/30 hidden sm:block mt-4" size={20} />
             <div className="flex flex-col items-center text-center group/item">
-              <Zap className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] transition-transform group-hover/item:scale-110" size={40} strokeWidth={1.5} />
+              <Zap className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] animate-float-slow" size={40} strokeWidth={1.5} style={{ animationDelay: '1s' }} />
               <p className="text-[11px] text-muted max-w-[90px] leading-relaxed">Elektron Mengalir (Arus Listrik)</p>
             </div>
             <ArrowRight className="text-signal/30 hidden sm:block mt-4" size={20} />
             <div className="flex flex-col items-center text-center group/item">
-              <Droplet className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] transition-transform group-hover/item:scale-110" size={40} strokeWidth={1.5} />
+              <Droplet className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] animate-float-slow" size={40} strokeWidth={1.5} style={{ animationDelay: '1.5s' }} />
               <p className="text-[11px] text-muted max-w-[90px] leading-relaxed">Sensor Memonitor Kualitas Air</p>
             </div>
             <ArrowRight className="text-signal/30 hidden sm:block mt-4" size={20} />
             <div className="flex flex-col items-center text-center group/item">
-              <Monitor className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] transition-transform group-hover/item:scale-110" size={40} strokeWidth={1.5} />
+              <Monitor className="text-signal mb-4 drop-shadow-[0_0_8px_rgba(74,222,148,0.5)] animate-float-slow" size={40} strokeWidth={1.5} style={{ animationDelay: '2s' }} />
               <p className="text-[11px] text-muted max-w-[90px] leading-relaxed">Data Diproses & Prediksi Ditampilkan</p>
             </div>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
 
       {/* Feature Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <Card className="flex gap-4 p-6 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="flex gap-4 p-6 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-signal/10 border border-signal flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_0_15px_rgba(74,222,148,0.5)] transition-shadow">
             <ShieldCheck className="text-signal" size={24} />
           </div>
@@ -76,8 +75,7 @@ export default function TentangPage() {
           </div>
         </Card>
 
-        <Card className="flex gap-4 p-6 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="flex gap-4 p-6 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-signal/10 border border-signal flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_0_15px_rgba(74,222,148,0.5)] transition-shadow">
             <Zap className="text-signal" size={24} />
           </div>
@@ -85,10 +83,9 @@ export default function TentangPage() {
             <h3 className="font-display font-medium text-fog mb-2 text-sm">Energi Mikro Dihasilkan</h3>
             <p className="text-xs text-muted leading-relaxed">Elektron yang dihasilkan oleh bakteri mengalir melalui rangkaian eksternal sehingga menghasilkan listrik mikro.</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="flex gap-4 p-6 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="flex gap-4 p-6 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-signal/10 border border-signal flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_0_15px_rgba(74,222,148,0.5)] transition-shadow">
             <Activity className="text-signal" size={24} />
           </div>
@@ -96,10 +93,9 @@ export default function TentangPage() {
             <h3 className="font-display font-medium text-fog mb-2 text-sm">Dipantau oleh Sensor</h3>
             <p className="text-xs text-muted leading-relaxed">Sensor TDS memantau kualitas air secara real-time dan dikirim ke sistem untuk dianalisis.</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="flex gap-4 p-6 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-signal/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MagneticCard className="flex gap-4 p-6 relative overflow-hidden">
           <div className="w-12 h-12 rounded-full bg-signal/10 border border-signal flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_0_15px_rgba(74,222,148,0.5)] transition-shadow">
             <Monitor className="text-signal" size={24} />
           </div>
@@ -107,13 +103,13 @@ export default function TentangPage() {
             <h3 className="font-display font-medium text-fog mb-2 text-sm">Website Memberi Prediksi</h3>
             <p className="text-xs text-muted leading-relaxed">Data diolah oleh sistem untuk memberikan prediksi sisa waktu dan kualitas hasil olahan.</p>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
 
       {/* Bottom Layout (3 columns) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Komponen Utama */}
-        <Card title="Komponen Utama">
+        <MagneticCard title="Komponen Utama" tiltStrength={5} magnetStrength={3}>
           <div className="space-y-6">
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full border border-signal flex items-center justify-center text-signal flex-shrink-0">
@@ -197,10 +193,10 @@ export default function TentangPage() {
               </div>
             </div>
           </div>
-        </Card>
+        </MagneticCard>
 
         {/* Tujuan Proyek */}
-        <Card title="Tujuan Proyek">
+        <MagneticCard title="Tujuan Proyek" tiltStrength={5} magnetStrength={3}>
           <div className="space-y-6">
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full border border-signal text-signal flex items-center justify-center font-mono text-sm flex-shrink-0">01</div>
@@ -226,10 +222,10 @@ export default function TentangPage() {
               </div>
             </div>
           </div>
-        </Card>
+        </MagneticCard>
 
         {/* Tim Pengembang */}
-        <Card title="Tim Pengembang">
+        <MagneticCard title="Tim Pengembang" tiltStrength={5} magnetStrength={3}>
           <div className="space-y-6">
             <div className="flex items-center gap-4 p-3 rounded-lg bg-panel border border-line">
               <div className="w-12 h-12 rounded-full border-2 border-signal flex items-center justify-center text-signal flex-shrink-0 bg-ink">
@@ -261,7 +257,7 @@ export default function TentangPage() {
               </div>
             </div>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
     </div>
   );

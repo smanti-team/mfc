@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import Card from "@/components/Card";
+import MagneticCard from "@/components/MagneticCard";
 import Badge from "@/components/Badge";
 import { 
   Database, CheckCircle2, RefreshCcw, Clock, ArrowRight, ArrowDownRight, 
@@ -48,9 +48,9 @@ export default function RiwayatPage() {
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 flex flex-col justify-between">
+        <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
-            <Database size={20} />
+            <Database size={20} className="animate-float" />
             <h3 className="text-sm font-medium text-fog">Total Batch</h3>
           </div>
           <div>
@@ -59,11 +59,11 @@ export default function RiwayatPage() {
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Total seluruh batch</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col justify-between">
+        <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
-            <CheckCircle2 size={20} />
+            <CheckCircle2 size={20} className="animate-float" style={{ animationDelay: '0.3s' }} />
             <h3 className="text-sm font-medium text-fog">Batch Selesai</h3>
           </div>
           <div>
@@ -72,11 +72,11 @@ export default function RiwayatPage() {
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">75% dari total batch</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col justify-between">
+        <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
-            <RefreshCcw size={20} />
+            <RefreshCcw size={20} className="animate-float" style={{ animationDelay: '0.6s' }} />
             <h3 className="text-sm font-medium text-fog">Batch Berjalan</h3>
           </div>
           <div>
@@ -85,11 +85,11 @@ export default function RiwayatPage() {
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Sedang dalam proses</p>
           </div>
-        </Card>
+        </MagneticCard>
 
-        <Card className="p-6 flex flex-col justify-between">
+        <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
-            <Clock size={20} />
+            <Clock size={20} className="animate-float" style={{ animationDelay: '0.9s' }} />
             <h3 className="text-sm font-medium text-fog">Rata-rata Durasi</h3>
           </div>
           <div>
@@ -99,13 +99,13 @@ export default function RiwayatPage() {
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Durasi rata-rata per batch</p>
           </div>
-        </Card>
+        </MagneticCard>
       </div>
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Table Section */}
-        <Card className="lg:col-span-2 p-6">
+        <MagneticCard className="lg:col-span-2 p-6" tiltStrength={5} magnetStrength={3}>
           <div className="flex items-center gap-2 mb-6">
             <CalendarDays className="text-signal" size={18} />
             <h3 className="font-display font-medium text-fog">Riwayat Batch Terbaru</h3>
@@ -162,11 +162,11 @@ export default function RiwayatPage() {
               Selanjutnya <ChevronRight size={16} />
             </button>
           </div>
-        </Card>
+        </MagneticCard>
 
         {/* Sidebar Details & Chart */}
         <div className="flex flex-col gap-6">
-          <Card className="p-6">
+          <MagneticCard className="p-6">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="text-signal" size={18} />
@@ -230,9 +230,9 @@ export default function RiwayatPage() {
             <button className="w-full mt-6 py-2.5 rounded-lg border border-signal text-signal hover:bg-signal/10 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
               <Activity size={16} /> Lihat Grafik
             </button>
-          </Card>
+          </MagneticCard>
 
-          <Card className="p-6">
+          <MagneticCard className="p-6">
             <div className="flex items-center gap-2 mb-6">
               <Activity className="text-signal" size={18} />
               <h3 className="font-display font-medium text-fog">Penurunan TDS per Batch</h3>
@@ -258,7 +258,7 @@ export default function RiwayatPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </MagneticCard>
         </div>
       </div>
     </div>
