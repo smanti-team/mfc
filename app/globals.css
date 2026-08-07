@@ -11,12 +11,12 @@
 
 html,
 body {
-  background-image: url('/BACKROUND.jpeg');
+  background-image: url('/Backround2.png');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
-  background-color: #F8FAF9;
+  background-color: #FAF6F0;
 }
 
 body {
