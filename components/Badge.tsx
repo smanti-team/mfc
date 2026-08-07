@@ -12,20 +12,19 @@ export default function Badge({ children, variant = "outline", icon }: BadgeProp
   let variantStyles = "";
   switch (variant) {
     case "outline":
-      baseStyles.concat(" border-electrode text-electrode bg-electrode/10");
-      variantStyles = "border-electrode text-electrode bg-electrode/10";
+      variantStyles = "border-sky-600 text-sky-700 bg-sky-50";
       break;
     case "outline-green":
-      variantStyles = "border-signal text-signal bg-signal/10";
+      variantStyles = "border-sky-600 text-sky-700 bg-sky-50 font-semibold";
       break;
     case "solid":
-      variantStyles = "border-signal text-ink bg-signal";
+      variantStyles = "border-sky-600 text-white bg-sky-600 font-semibold";
       break;
     case "warning":
-      variantStyles = "border-electrode text-electrode bg-electrode/10";
+      variantStyles = "border-amber-600 text-amber-800 bg-amber-50 font-semibold";
       break;
     case "success":
-      variantStyles = "border-signal text-signal bg-signal/10";
+      variantStyles = "border-sky-600 text-sky-700 bg-sky-50 font-semibold";
       break;
   }
 

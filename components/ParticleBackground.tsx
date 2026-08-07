@@ -46,8 +46,8 @@ export default function ParticleBackground() {
 
       draw() {
         if (!ctx) return;
-        // Warna titik partikel (hijau tema)
-        ctx.fillStyle = "rgba(74, 222, 148, 0.6)"; 
+        // Warna titik partikel (biru air tema)
+        ctx.fillStyle = "rgba(2, 132, 199, 0.7)"; 
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
@@ -73,11 +73,11 @@ export default function ParticleBackground() {
           const dy = particles[a].y - particles[b].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Hubungkan titik-titik jika berdekatan
+          // Hubungkan titik-titik jika berdekatan (jaring laba-laba)
           if (distance < 110) {
             opacityValue = 1 - distance / 110;
-            ctx.strokeStyle = `rgba(74, 222, 148, ${opacityValue * 0.25})`;
-            ctx.lineWidth = 0.8;
+            ctx.strokeStyle = `rgba(2, 132, 199, ${opacityValue * 0.45})`;
+            ctx.lineWidth = 1.0;
             ctx.beginPath();
             ctx.moveTo(particles[a].x, particles[a].y);
             ctx.lineTo(particles[b].x, particles[b].y);
@@ -92,17 +92,17 @@ export default function ParticleBackground() {
         
         if (mouseDistance < 180) {
           opacityValue = 1 - mouseDistance / 180;
-          ctx.strokeStyle = `rgba(74, 222, 148, ${opacityValue * 0.6})`;
-          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = `rgba(2, 132, 199, ${opacityValue * 0.75})`;
+          ctx.lineWidth = 1.4;
           ctx.beginPath();
           ctx.moveTo(particles[a].x, particles[a].y);
           ctx.lineTo(mouse.x, mouse.y);
           ctx.stroke();
           
           // Efek cahaya (glow) pada partikel saat didekati mouse
-          ctx.fillStyle = `rgba(74, 222, 148, ${opacityValue * 0.8})`;
+          ctx.fillStyle = `rgba(2, 132, 199, ${opacityValue * 0.9})`;
           ctx.beginPath();
-          ctx.arc(particles[a].x, particles[a].y, particles[a].size * 1.5, 0, Math.PI * 2);
+          ctx.arc(particles[a].x, particles[a].y, particles[a].size * 1.8, 0, Math.PI * 2);
           ctx.fill();
         }
       }

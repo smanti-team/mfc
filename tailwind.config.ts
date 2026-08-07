@@ -5,13 +5,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0B1A17",
-        panel: "#12241F",
-        line: "#22403A",
-        signal: "#4ADE94",
-        electrode: "#F2B84B",
-        fog: "#E7F2ED",
-        muted: "#8FADA3",
+        ink: "rgba(255, 255, 255, 0.75)",
+        panel: "#FFFFFF",
+        line: "rgba(2, 132, 199, 0.15)",
+        signal: "#0284C7",
+        electrode: "#0369A1",
+        fog: "#0F172A",
+        muted: "#475569",
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],
