@@ -44,7 +44,7 @@ function formatFullDateTime(ts: string | number) {
   });
 }
 
-// Custom Node Renderer for Recharts (Gray dot for 8 predicted nodes, Green for real nodes)
+// Custom Node Renderer for Recharts (Gray dot for 8 predicted nodes, Teal for real nodes)
 const RenderCustomDot = (props: any) => {
   const { cx, cy, payload } = props;
   if (cx == null || cy == null) return null;
@@ -54,8 +54,8 @@ const RenderCustomDot = (props: any) => {
       cx={cx}
       cy={cy}
       r={4}
-      fill={isPred ? "#9CA3AF" : "#0B1A17"}
-      stroke={isPred ? "#9CA3AF" : "#4ADE94"}
+      fill={isPred ? "#94A3B8" : "#FFFFFF"}
+      stroke={isPred ? "#94A3B8" : "#0284C7"}
       strokeWidth={2}
     />
   );
@@ -70,8 +70,8 @@ const RenderCustomActiveDot = (props: any) => {
       cx={cx}
       cy={cy}
       r={6}
-      fill={isPred ? "#9CA3AF" : "#4ADE94"}
-      stroke="#0B1A17"
+      fill={isPred ? "#94A3B8" : "#0284C7"}
+      stroke="#FFFFFF"
       strokeWidth={2}
     />
   );
@@ -237,9 +237,9 @@ export default function Home() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <p className="text-signal text-sm font-medium mb-1">Selamat datang di</p>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-fog">SMART-MFC Dashboard</h1>
-          <p className="text-muted text-sm mt-2">Sistem pemantauan pengolahan limbah cair organik berbasis Microbial Fuel Cell.</p>
+          <p className="text-sky-600 text-sm font-semibold mb-1">Selamat datang di</p>
+          <h1 className="font-display text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">SMART-MFC Dashboard</h1>
+          <p className="text-slate-600 text-sm mt-2 font-medium">Sistem pemantauan pengolahan limbah cair organik berbasis Microbial Fuel Cell.</p>
         </div>
         <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
           {error ? "MODE PENGUJIAN / SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
@@ -247,75 +247,76 @@ export default function Home() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-sm">
-          Perhatian: {error}. Menggunakan fallback data.
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-sm shadow-sm backdrop-blur-md flex items-center gap-3">
+          <FlaskConical className="text-amber-600 flex-shrink-0" size={18} />
+          <span>Perhatian: {error}. Menggunakan fallback data simulasi.</span>
         </div>
       )}
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
-          <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+          <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <SunDim size={18} strokeWidth={2.5} className="animate-float" />
-            <h3 className="text-[13px] font-medium text-fog">TDS Saat Ini</h3>
+            <h3 className="text-[13px] font-semibold text-slate-700">TDS Saat Ini</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[72px] leading-none font-bold text-signal tracking-tighter drop-shadow-[0_0_20px_rgba(74,222,148,0.4)]">
+              <span className="font-display text-[72px] leading-none font-bold text-sky-600 tracking-tighter">
                 {isLoading ? "..." : latestTds}
               </span>
-              <span className="text-muted text-xl font-medium tracking-wide">ppm</span>
+              <span className="text-slate-500 text-xl font-medium tracking-wide">ppm</span>
             </div>
-            <p className="text-[11px] text-muted mt-2 tracking-wide">Total Padatan Terlarut (Real-Time API)</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Total Padatan Terlarut (Real-Time API)</p>
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
-          <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+          <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Zap size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.3s' }} />
-            <h3 className="text-[13px] font-medium text-fog">Tegangan MFC</h3>
+            <h3 className="text-[13px] font-semibold text-slate-700">Tegangan MFC</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[72px] leading-none font-bold text-signal tracking-tighter drop-shadow-[0_0_20px_rgba(74,222,148,0.4)]">
+              <span className="font-display text-[72px] leading-none font-bold text-sky-600 tracking-tighter">
                 {isLoading ? "..." : latestVoltage}
               </span>
-              <span className="text-muted text-xl font-medium tracking-wide">mV</span>
+              <span className="text-slate-500 text-xl font-medium tracking-wide">mV</span>
             </div>
-            <p className="text-[11px] text-muted mt-2 tracking-wide">Tegangan yang dihasilkan mikroba</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Tegangan yang dihasilkan mikroba</p>
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
-          <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+          <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Hourglass size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.6s' }} />
-            <h3 className="text-[13px] font-medium text-fog">Prediksi &lt; 50 PPM</h3>
+            <h3 className="text-[13px] font-semibold text-slate-700">Prediksi &lt; 50 PPM</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[38px] lg:text-[44px] leading-none font-bold text-signal tracking-tight drop-shadow-[0_0_20px_rgba(74,222,148,0.4)]">
+              <span className="font-display text-[38px] lg:text-[44px] leading-none font-bold text-sky-600 tracking-tight">
                 {isLoading ? "..." : timeTo50String}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 tracking-wide">
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">
               Berdasarkan slope 8 data terakhir ({slopeAnalysis.slope.toFixed(2)} ppm/step)
             </p>
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-signal/20">
-          <div className="flex items-center gap-2 text-signal mb-2 relative z-10">
+        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+          <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Activity size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.9s' }} />
-            <h3 className="text-[13px] font-medium text-fog">Status Pengolahan</h3>
+            <h3 className="text-[13px] font-semibold text-slate-700">Status Pengolahan</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
             <div className="flex items-center gap-4">
-              <span className="font-display text-[44px] lg:text-[52px] leading-none font-bold text-signal tracking-tighter drop-shadow-[0_0_20px_rgba(74,222,148,0.4)]">
+              <span className="font-display text-[44px] lg:text-[52px] leading-none font-bold text-sky-600 tracking-tighter">
                 {isTargetReached ? "Selesai" : "Berjalan"}
               </span>
-              <span className={`w-4 h-4 rounded-full ${isTargetReached ? "bg-emerald-400" : "bg-signal shadow-[0_0_15px_#4ADE94] animate-pulse"}`}></span>
+              <span className={`w-4 h-4 rounded-full ${isTargetReached ? "bg-sky-500" : "bg-sky-500 shadow-[0_0_12px_#0284C7] animate-pulse"}`}></span>
             </div>
-            <p className="text-[11px] text-muted mt-3 tracking-wide">
+            <p className="text-[11px] text-slate-500 mt-3 tracking-wide font-medium">
               {isTargetReached ? "Target TDS < 50 ppm tercapai" : "Sistem beroperasi aktif"}
             </p>
           </div>
@@ -323,44 +324,44 @@ export default function Home() {
       </div>
 
       {/* Info Bar */}
-      <div className="border border-line bg-panel/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 mb-6 text-sm">
+      <div className="border border-sky-900/10 bg-white/80 backdrop-blur-md rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 mb-6 text-sm shadow-sm text-slate-800">
         <div className="flex items-center gap-3">
-          <Calendar className="text-signal" size={18} />
+          <Calendar className="text-sky-600" size={18} />
           <div>
-            <p className="text-muted text-xs">Update Terakhir (API)</p>
-            <p className="text-fog font-mono text-xs">{lastUpdateTimeStr}</p>
+            <p className="text-slate-500 text-xs font-medium">Update Terakhir (API)</p>
+            <p className="text-slate-900 font-mono text-xs font-semibold">{lastUpdateTimeStr}</p>
           </div>
         </div>
-        <div className="w-px h-8 bg-line hidden lg:block"></div>
+        <div className="w-px h-8 bg-sky-900/10 hidden lg:block"></div>
         <div className="flex items-center gap-3">
-          <RefreshCcw className="text-signal" size={18} />
+          <RefreshCcw className="text-sky-600" size={18} />
           <div>
-            <p className="text-fog">Pembaruan Otomatis</p>
-            <p className="text-muted text-xs">setiap 15 detik</p>
+            <p className="text-slate-900 font-medium">Pembaruan Otomatis</p>
+            <p className="text-slate-500 text-xs">setiap 15 detik</p>
           </div>
         </div>
-        <div className="w-px h-8 bg-line hidden lg:block"></div>
+        <div className="w-px h-8 bg-sky-900/10 hidden lg:block"></div>
         <div className="flex items-center gap-3">
-          <TrendingDown className="text-signal" size={18} />
+          <TrendingDown className="text-sky-600" size={18} />
           <div>
-            <p className="text-fog">Slope (8 Data Terakhir)</p>
-            <p className="text-signal text-xs font-mono">{slopeAnalysis.slope.toFixed(2)} ppm / step</p>
+            <p className="text-slate-900 font-medium">Slope (8 Data Terakhir)</p>
+            <p className="text-sky-700 text-xs font-mono font-bold">{slopeAnalysis.slope.toFixed(2)} ppm / step</p>
           </div>
         </div>
-        <div className="w-px h-8 bg-line hidden lg:block"></div>
+        <div className="w-px h-8 bg-sky-900/10 hidden lg:block"></div>
         <div className="flex items-center gap-3">
-          <Wifi className="text-signal" size={18} />
+          <Wifi className="text-sky-600" size={18} />
           <div>
-            <p className="text-fog">Cloud Worker API</p>
-            <p className="text-signal text-xs">Online</p>
+            <p className="text-slate-900 font-medium">Cloud Worker API</p>
+            <p className="text-sky-600 text-xs font-bold">Online</p>
           </div>
         </div>
-        <div className="w-px h-8 bg-line hidden lg:block"></div>
+        <div className="w-px h-8 bg-sky-900/10 hidden lg:block"></div>
         <div className="flex items-center gap-3">
-          <BatteryCharging className="text-signal" size={18} />
+          <BatteryCharging className="text-sky-600" size={18} />
           <div>
-            <p className="text-fog">Self-Powered</p>
-            <p className="text-muted text-xs">MFC Cell Active</p>
+            <p className="text-slate-900 font-medium">Self-Powered</p>
+            <p className="text-slate-500 text-xs font-medium">MFC Cell Active</p>
           </div>
         </div>
       </div>
@@ -370,46 +371,46 @@ export default function Home() {
         <Card className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Droplet className="text-signal" size={20} />
-              <h3 className="font-display font-medium text-fog text-lg">Grafik TDS vs Waktu</h3>
+              <Droplet className="text-sky-600" size={20} />
+              <h3 className="font-display font-semibold text-slate-900 text-lg">Grafik TDS vs Waktu</h3>
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 text-fog">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4ADE94]"></span> Data Aktual
+            <div className="flex items-center gap-4 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7]"></span> Data Aktual
               </span>
-              <span className="flex items-center gap-1.5 text-gray-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#9CA3AF]"></span> 8 Node Prediksi (Abu-abu)
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8]"></span> 8 Node Prediksi (Abu-abu)
               </span>
             </div>
           </div>
-          <p className="text-[11px] text-muted mb-2">
-            TDS (ppm) — Slope 8 data terakhir: <span className="font-mono text-signal">{slopeAnalysis.slope.toFixed(2)} ppm/step</span>
+          <p className="text-[11px] text-slate-500 mb-2 font-medium">
+            TDS (ppm) — Slope 8 data terakhir: <span className="font-mono text-sky-700 font-bold">{slopeAnalysis.slope.toFixed(2)} ppm/step</span>
           </p>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorTds" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#4ADE94" stopOpacity={0.5}/>
-                    <stop offset="100%" stopColor="#4ADE94" stopOpacity={0.05}/>
+                    <stop offset="0%" stopColor="#0284C7" stopOpacity={0.4}/>
+                    <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#22403A" vertical={true} horizontal={true} strokeOpacity={0.4} />
-                <XAxis dataKey="time" stroke="#8FADA3" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={20} />
-                <YAxis stroke="#8FADA3" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 'auto']} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                <XAxis dataKey="time" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={20} />
+                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 'auto']} />
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-[#0B1A17] border border-[#22403A] p-3 rounded-lg text-xs space-y-1 shadow-xl">
-                          <p className="text-fog font-medium">{data.fullTime || data.time}</p>
+                        <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                          <p className="text-slate-900 font-semibold">{data.fullTime || data.time}</p>
                           <div className="flex items-center gap-2">
-                            <span className={data.isPrediction ? "text-gray-300 font-semibold" : "text-signal font-semibold"}>
+                            <span className={data.isPrediction ? "text-slate-600 font-semibold" : "text-sky-700 font-bold"}>
                               TDS: {data.tds} ppm
                             </span>
                             {data.isPrediction && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-700 text-gray-200 font-mono">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-mono border border-slate-200">
                                 ⚪ Node Prediksi
                               </span>
                             )}
@@ -420,12 +421,12 @@ export default function Home() {
                     return null;
                   }}
                 />
-                <ReferenceLine y={50} stroke="#F2B84B" strokeDasharray="3 3" strokeOpacity={0.8} label={{ value: "Target 50 ppm", fill: "#F2B84B", fontSize: 10, position: "insideTopRight" }} />
+                <ReferenceLine y={50} stroke="#D97706" strokeDasharray="3 3" strokeOpacity={0.9} label={{ value: "Target 50 ppm", fill: "#D97706", fontSize: 10, position: "insideTopRight" }} />
                 <Area 
                   type="monotone" 
                   dataKey="tds" 
                   name="TDS (ppm)" 
-                  stroke="#4ADE94" 
+                  stroke="#0284C7" 
                   strokeWidth={3} 
                   fillOpacity={1} 
                   fill="url(#colorTds)" 
@@ -435,13 +436,13 @@ export default function Home() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center mt-2 items-center gap-4 text-xs text-muted">
+          <div className="flex justify-center mt-2 items-center gap-4 text-xs text-slate-600 font-medium">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-signal border border-ink"></div>
-              <span>Node Aktual (Hijau)</span>
+              <div className="w-3 h-3 rounded-full bg-[#0284C7]"></div>
+              <span>Node Aktual (Biru Air)</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-gray-400 border border-ink"></div>
+              <div className="w-3 h-3 rounded-full bg-[#94A3B8]"></div>
               <span>8 Node Prediksi Slope (Abu-abu)</span>
             </div>
           </div>
@@ -450,44 +451,44 @@ export default function Home() {
         <Card className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Zap className="text-signal" size={20} />
-              <h3 className="font-display font-medium text-fog text-lg">Grafik Tegangan MFC vs Waktu</h3>
+              <Zap className="text-sky-600" size={20} />
+              <h3 className="font-display font-semibold text-slate-900 text-lg">Grafik Tegangan MFC vs Waktu</h3>
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 text-fog">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4ADE94]"></span> Data Aktual
+            <div className="flex items-center gap-4 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7]"></span> Data Aktual
               </span>
-              <span className="flex items-center gap-1.5 text-gray-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#9CA3AF]"></span> 8 Node Prediksi
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8]"></span> 8 Node Prediksi
               </span>
             </div>
           </div>
-          <p className="text-[11px] text-muted mb-2">Tegangan (mV) — Hasil konversi dari pembacaan sensor</p>
+          <p className="text-[11px] text-slate-500 mb-2 font-medium">Tegangan (mV) — Hasil konversi dari pembacaan sensor</p>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorVolt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#4ADE94" stopOpacity={0.5}/>
-                    <stop offset="100%" stopColor="#4ADE94" stopOpacity={0.05}/>
+                    <stop offset="0%" stopColor="#0284C7" stopOpacity={0.4}/>
+                    <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#22403A" vertical={true} horizontal={true} strokeOpacity={0.4} />
-                <XAxis dataKey="time" stroke="#8FADA3" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={20} />
-                <YAxis stroke="#8FADA3" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 'auto']} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                <XAxis dataKey="time" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={20} />
+                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 'auto']} />
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-[#0B1A17] border border-[#22403A] p-3 rounded-lg text-xs space-y-1 shadow-xl">
-                          <p className="text-fog font-medium">{data.fullTime || data.time}</p>
+                        <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                          <p className="text-slate-900 font-semibold">{data.fullTime || data.time}</p>
                           <div className="flex items-center gap-2">
-                            <span className={data.isPrediction ? "text-gray-300 font-semibold" : "text-signal font-semibold"}>
+                            <span className={data.isPrediction ? "text-slate-600 font-semibold" : "text-sky-700 font-bold"}>
                               Tegangan: {data.voltage} mV
                             </span>
                             {data.isPrediction && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-700 text-gray-200 font-mono">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-mono border border-slate-200">
                                 ⚪ Node Prediksi
                               </span>
                             )}
@@ -502,7 +503,7 @@ export default function Home() {
                   type="monotone" 
                   dataKey="voltage" 
                   name="Tegangan (mV)" 
-                  stroke="#4ADE94" 
+                  stroke="#0284C7" 
                   strokeWidth={3} 
                   fillOpacity={1} 
                   fill="url(#colorVolt)" 
@@ -512,13 +513,13 @@ export default function Home() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center mt-2 items-center gap-4 text-xs text-muted">
+          <div className="flex justify-center mt-2 items-center gap-4 text-xs text-slate-600 font-medium">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-signal border border-ink"></div>
-              <span>Node Tegangan Aktual (Hijau)</span>
+              <div className="w-3 h-3 rounded-full bg-[#0284C7]"></div>
+              <span>Node Tegangan Aktual (Biru Air)</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-gray-400 border border-ink"></div>
+              <div className="w-3 h-3 rounded-full bg-[#94A3B8]"></div>
               <span>8 Node Prediksi (Abu-abu)</span>
             </div>
           </div>
@@ -529,52 +530,52 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <Card className="lg:col-span-2 p-6 relative overflow-hidden">
           <div className="flex items-center gap-2 mb-10">
-            <Target className="text-signal" size={20} />
-            <h3 className="font-display font-medium text-fog text-lg">Cara Kerja Prediksi Slope SMART-MFC</h3>
+            <Target className="text-sky-600" size={20} />
+            <h3 className="font-display font-semibold text-slate-900 text-lg">Cara Kerja Prediksi Slope SMART-MFC</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-signal text-ink font-bold flex items-center justify-center text-sm shadow-[0_0_10px_#4ADE94]">1</div>
-                <FlaskConical size={36} className="text-signal mt-6 drop-shadow-[0_0_10px_rgba(74,222,148,0.6)]" strokeWidth={1.5} />
+                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">1</div>
+                <FlaskConical size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
               </div>
               <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-fog text-sm font-bold h-7 flex items-center">Ambil 8 Data Terakhir</h4>
-                <p className="text-[11px] text-muted leading-relaxed mt-5">Sistem secara otomatis membaca 8 titik data real-time terbaru dari database D1 Worker API.</p>
+                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Ambil 8 Data Terakhir</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Sistem secara otomatis membaca 8 titik data real-time terbaru dari database D1 Worker API.</p>
               </div>
             </div>
             
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-signal text-ink font-bold flex items-center justify-center text-sm shadow-[0_0_10px_#4ADE94]">2</div>
-                <TrendingDown size={36} className="text-signal mt-6 drop-shadow-[0_0_10px_rgba(74,222,148,0.6)]" strokeWidth={1.5} />
+                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">2</div>
+                <TrendingDown size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
               </div>
               <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-fog text-sm font-bold h-7 flex items-center">Hitung Slope Regresi</h4>
-                <p className="text-[11px] text-muted leading-relaxed mt-5">Kemiringan (slope = {slopeAnalysis.slope.toFixed(2)}) dihitung menggunakan metode least squares linier.</p>
+                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Hitung Slope Regresi</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Kemiringan (slope = {slopeAnalysis.slope.toFixed(2)}) dihitung menggunakan metode least squares linier.</p>
               </div>
             </div>
             
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-signal text-ink font-bold flex items-center justify-center text-sm shadow-[0_0_10px_#4ADE94]">3</div>
-                <Droplet size={36} className="text-signal mt-6 drop-shadow-[0_0_10px_rgba(74,222,148,0.6)]" strokeWidth={1.5} />
+                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">3</div>
+                <Droplet size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
               </div>
               <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-fog text-sm font-bold h-7 flex items-center">Generate 8 Node Abu-abu</h4>
-                <p className="text-[11px] text-muted leading-relaxed mt-5">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik.</p>
+                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Generate 8 Node Abu-abu</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik.</p>
               </div>
             </div>
             
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-signal text-ink font-bold flex items-center justify-center text-sm shadow-[0_0_10px_#4ADE94]">4</div>
-                <Monitor size={36} className="text-signal mt-6 drop-shadow-[0_0_10px_rgba(74,222,148,0.6)]" strokeWidth={1.5} />
+                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">4</div>
+                <Monitor size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
               </div>
               <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-fog text-sm font-bold h-7 flex items-center leading-tight">Estimasi Waktu &lt; 50 PPM</h4>
-                <p className="text-[11px] text-muted leading-relaxed mt-5">Prediksi durasi hingga TDS turun di bawah 50 ppm dihitung secara presisi ({timeTo50String}).</p>
+                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center leading-tight">Estimasi Waktu &lt; 50 PPM</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Prediksi durasi hingga TDS turun di bawah 50 ppm dihitung secara presisi ({timeTo50String}).</p>
               </div>
             </div>
           </div>
@@ -582,38 +583,38 @@ export default function Home() {
 
         <Card className="p-6 relative overflow-hidden group">
           <div className="flex items-center gap-2 mb-8 relative z-10">
-            <Target className="text-signal" size={20} />
-            <h3 className="font-display font-medium text-fog text-lg">Target &amp; Parameter API</h3>
+            <Target className="text-sky-600" size={20} />
+            <h3 className="font-display font-semibold text-slate-900 text-lg">Target &amp; Parameter API</h3>
           </div>
           
           <div className="space-y-6 relative z-10">
             <div>
-              <p className="text-xs text-muted mb-1">Target TDS Utama</p>
-              <h4 className="text-2xl font-display font-bold text-signal drop-shadow-[0_0_10px_rgba(74,222,148,0.4)]">
+              <p className="text-xs text-slate-500 font-medium mb-1">Target TDS Utama</p>
+              <h4 className="text-2xl font-display font-bold text-sky-600">
                 &le; 50 ppm
               </h4>
             </div>
             <div>
-              <p className="text-xs text-muted mb-1">Estimasi Waktu Target (&lt; 50 ppm)</p>
-              <h4 className="text-2xl font-display font-bold text-fog drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+              <p className="text-xs text-slate-500 font-medium mb-1">Estimasi Waktu Target (&lt; 50 ppm)</p>
+              <h4 className="text-2xl font-display font-bold text-slate-900">
                 {timeTo50String}
               </h4>
             </div>
             <div>
-              <p className="text-xs text-muted mb-1">Kemiringan (Slope 8 Data)</p>
-              <h4 className="text-lg font-mono font-bold text-signal">
+              <p className="text-xs text-slate-500 font-medium mb-1">Kemiringan (Slope 8 Data)</p>
+              <h4 className="text-lg font-mono font-bold text-sky-600">
                 {slopeAnalysis.slope.toFixed(2)} ppm / step
               </h4>
             </div>
             
-            <div className="pt-2 border-t border-line/50">
-              <p className="text-[10px] text-muted leading-relaxed">Live API Endpoint</p>
-              <p className="text-[10px] text-signal font-mono truncate">mfc-d1-api.derylchrist08.workers.dev</p>
+            <div className="pt-2 border-t border-slate-200">
+              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Live API Endpoint</p>
+              <p className="text-[10px] text-sky-600 font-mono font-bold truncate">mfc-d1-api.derylchrist08.workers.dev</p>
             </div>
           </div>
 
           {/* Target Icon Decorative */}
-          <div className="absolute -bottom-6 -right-6 text-signal/5 group-hover:text-signal/10 transition-colors pointer-events-none">
+          <div className="absolute -bottom-6 -right-6 text-sky-900/5 group-hover:text-sky-900/10 transition-colors pointer-events-none">
             <Target size={180} strokeWidth={0.5} />
           </div>
         </Card>
