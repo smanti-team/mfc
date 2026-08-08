@@ -608,8 +608,8 @@ export default function Home() {
             </div>
             
             <div className="pt-2 border-t border-slate-200">
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Live API Endpoint</p>
-              <p className="text-[10px] text-sky-600 font-mono font-bold truncate">mfc-d1-api.derylchrist08.workers.dev</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Status Koneksi API</p>
+              <p className="text-[10px] text-sky-600 font-mono font-bold truncate">Cloudflare D1 Worker (Terhubung)</p>
             </div>
           </div>
 
