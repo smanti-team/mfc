@@ -32,7 +32,7 @@ export default function LiveReadout({ reading }: { reading: Reading | null }) {
         <div>
           <div className="flex items-baseline gap-3">
             <span className="font-mono text-glow text-6xl font-bold leading-none text-signal sm:text-8xl">
-              {reading ? reading.tds.toLocaleString() : "—"}
+              {reading && reading.tds != null ? reading.tds.toLocaleString() : "—"}
             </span>
             <span className="font-mono text-xl text-muted sm:text-2xl">ppm TDS</span>
           </div>

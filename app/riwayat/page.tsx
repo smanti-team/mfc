@@ -114,16 +114,18 @@ export default function RiwayatPage() {
         ? (hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} mnt`)
         : "15 mnt";
 
+      const lastTds = last.tds ?? 0;
+      const firstTds = first.tds ?? 0;
       const isLatestChunk = (i + chunkSize >= sorted.length);
       const status: "Selesai" | "Berjalan" | "Perlu Evaluasi" = 
-        last.tds <= 50 ? "Selesai" : (isLatestChunk ? "Berjalan" : "Selesai");
+        lastTds <= 50 ? "Selesai" : (isLatestChunk ? "Berjalan" : "Selesai");
 
       batches.push({
         id: bId,
         start: formatFullDateTime(first.timestamp),
         end: formatFullDateTime(last.timestamp),
-        tdsStart: first.tds,
-        tdsEnd: last.tds,
+        tdsStart: firstTds,
+        tdsEnd: lastTds,
         duration: durationStr,
         status
       });

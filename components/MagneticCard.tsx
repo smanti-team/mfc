@@ -96,14 +96,14 @@ export default function MagneticCard({
       />
 
       {/* Card content */}
-      <div className="relative z-10">
+      <div className="relative z-10 h-full flex flex-col justify-between">
         {(title || icon) && (
           <div className="flex items-center gap-3 px-5 py-4 border-b border-teal-900/10 bg-white/50">
             {icon && <div className="text-teal-700">{icon}</div>}
             {title && <h3 className="font-display font-semibold text-slate-900">{title}</h3>}
           </div>
         )}
-        <div className={title || icon ? "p-5" : ""}>{children}</div>
+        <div className={`h-full flex flex-col justify-between ${title || icon ? "p-5" : ""}`}>{children}</div>
       </div>
     </div>
   );

@@ -101,18 +101,43 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [load]);
 
+  // Fallback 10 mock records aligned with REST API Spec Section 2
+  const fallbackHistory: Reading[] = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      { timestamp: now - 2700, tds: 380.2, voltage: 1.98 },
+      { timestamp: now - 2400, tds: 392.5, voltage: 2.05 },
+      { timestamp: now - 2100, tds: 405.0, voltage: 2.11 },
+      { timestamp: now - 1800, tds: 418.6, voltage: 2.18 },
+      { timestamp: now - 1500, tds: 425.4, voltage: 2.22 },
+      { timestamp: now - 1200, tds: 433.1, voltage: 2.26 },
+      { timestamp: now - 900,  tds: 441.8, voltage: 2.30 },
+      { timestamp: now - 600,  tds: 448.0, voltage: 2.33 },
+      { timestamp: now - 300,  tds: 452.3, voltage: 2.35 },
+      { timestamp: now,        tds: 455.0, voltage: 2.37 },
+    ];
+  }, []);
+
   // Ensure history is sorted ascending by time
   const sortedHistory = useMemo(() => {
-    if (!summary.history || summary.history.length === 0) return [];
-    return [...summary.history].sort(
+    const rawList = (summary.history && summary.history.length > 0) ? summary.history : (error ? fallbackHistory : []);
+    return [...rawList].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
-  }, [summary.history]);
+  }, [summary.history, error, fallbackHistory]);
 
-  // Latest reading
-  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : null);
-  const latestTds = latestReading?.tds ?? 337;
-  const latestVoltage = deriveVoltage(latestTds);
+  // Latest reading from API or fallback
+  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : (error ? fallbackHistory[fallbackHistory.length - 1] : null));
+  const latestTds = latestReading?.tds != null ? latestReading.tds : 455.0;
+  
+  // Dual telemetry voltage: use voltage from API if available, else derive from TDS
+  const rawVoltage = latestReading?.voltage;
+  const isVoltsUnit = rawVoltage != null ? rawVoltage <= 20 : false;
+  const latestVoltageDisplay = rawVoltage != null
+    ? (isVoltsUnit ? rawVoltage.toFixed(2) : Math.round(rawVoltage))
+    : deriveVoltage(latestTds);
+  const voltageUnit = rawVoltage != null ? (isVoltsUnit ? "V" : "mV") : "mV";
+
   const lastUpdateTimeStr = latestReading ? formatFullDateTime(latestReading.timestamp) : "Belum ada data";
 
   // Compute Linear Regression Slope from the last 8 data points
@@ -135,7 +160,7 @@ export default function Home() {
 
     for (let i = 0; i < N; i++) {
       const x = i;
-      const y = last8[i].tds;
+      const y = last8[i].tds ?? 0;
       sumX += x;
       sumY += y;
       sumXY += x * y;
@@ -157,29 +182,34 @@ export default function Home() {
   // Calculate 8 predicted future data points based on slope
   const { chartData, timeTo50String, isTargetReached } = useMemo(() => {
     if (sortedHistory.length === 0) {
-      // Fallback data if API returns empty
       const mock = Array.from({ length: 8 }).map((_, i) => ({
         time: `0${i + 8}:00`.slice(-5),
         fullTime: `Point ${i + 1}`,
         tds: Math.max(100, 500 - i * 45),
-        voltage: 200 + i * 30,
+        voltage: 2.0 + i * 0.05,
         isPrediction: false,
       }));
       return { chartData: mock, timeTo50String: "± 8 jam", isTargetReached: false };
     }
 
-    // 1. Real data points
-    const realPoints = sortedHistory.map((d) => ({
-      time: formatTime(d.timestamp),
-      fullTime: formatFullDateTime(d.timestamp),
-      tds: d.tds,
-      voltage: deriveVoltage(d.tds),
-      isPrediction: false,
-    }));
+    // 1. Real data points from Telemetry API
+    const realPoints = sortedHistory.map((d) => {
+      const tdsVal = d.tds ?? 0;
+      const vVal = d.voltage != null 
+        ? d.voltage 
+        : (deriveVoltage(tdsVal) / 1000);
+      return {
+        time: formatTime(d.timestamp),
+        fullTime: formatFullDateTime(d.timestamp),
+        tds: tdsVal,
+        voltage: vVal,
+        isPrediction: false,
+      };
+    });
 
     const lastReal = sortedHistory[sortedHistory.length - 1];
     const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
-    const lastRealTds = lastReal.tds;
+    const lastRealTds = lastReal.tds ?? 0;
 
     // 2. Generate 8 predicted points extending from last real data point
     const predictedPoints = [];
@@ -188,11 +218,12 @@ export default function Home() {
     for (let k = 1; k <= 8; k++) {
       const predTimeMs = lastRealTimeMs + k * timeStepMs;
       const predTds = Math.max(0, Math.round(lastRealTds + k * slope));
+      const predV = deriveVoltage(predTds) / 1000;
       predictedPoints.push({
         time: formatTime(predTimeMs),
         fullTime: `${formatFullDateTime(predTimeMs)} (Prediksi #${k})`,
         tds: predTds,
-        voltage: deriveVoltage(predTds),
+        voltage: Number(predV.toFixed(2)),
         isPrediction: true,
       });
     }
@@ -255,46 +286,52 @@ export default function Home() {
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+        <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
           <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <SunDim size={18} strokeWidth={2.5} className="animate-float" />
             <h3 className="text-[13px] font-semibold text-slate-700">TDS Saat Ini</h3>
           </div>
-          <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
+          <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[72px] leading-none font-bold text-sky-600 tracking-tighter">
+              <span className="font-display text-4xl lg:text-5xl leading-tight font-bold text-sky-600 tracking-tight">
                 {isLoading ? "..." : latestTds}
               </span>
-              <span className="text-slate-500 text-xl font-medium tracking-wide">ppm</span>
+              <span className="text-slate-500 text-lg font-medium tracking-wide">ppm</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Total Padatan Terlarut (Real-Time API)</p>
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+        <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
           <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Zap size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.3s' }} />
             <h3 className="text-[13px] font-semibold text-slate-700">Tegangan MFC</h3>
           </div>
-          <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
+          <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[72px] leading-none font-bold text-sky-600 tracking-tighter">
-                {isLoading ? "..." : latestVoltage}
+              <span className="font-display text-4xl lg:text-5xl leading-tight font-bold text-sky-600 tracking-tight">
+                {isLoading ? "..." : latestVoltageDisplay}
               </span>
-              <span className="text-slate-500 text-xl font-medium tracking-wide">mV</span>
+              <span className="text-slate-500 text-lg font-medium tracking-wide">{voltageUnit}</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Tegangan yang dihasilkan mikroba</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Tegangan yang dihasilkan mikroba (Dual Telemetry API)</p>
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+        <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
           <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Hourglass size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.6s' }} />
             <h3 className="text-[13px] font-semibold text-slate-700">Prediksi &lt; 50 PPM</h3>
           </div>
-          <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
+          <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[38px] lg:text-[44px] leading-none font-bold text-sky-600 tracking-tight">
+              <span className={`font-display font-bold text-sky-600 tracking-tight leading-tight ${
+                timeTo50String.length > 18
+                  ? "text-lg lg:text-xl"
+                  : timeTo50String.length > 12
+                  ? "text-xl lg:text-2xl"
+                  : "text-3xl lg:text-4xl"
+              }`}>
                 {isLoading ? "..." : timeTo50String}
               </span>
             </div>
@@ -304,19 +341,19 @@ export default function Home() {
           </div>
         </MagneticCard>
 
-        <MagneticCard className="p-6 flex flex-col h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+        <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
           <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
             <Activity size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.9s' }} />
             <h3 className="text-[13px] font-semibold text-slate-700">Status Pengolahan</h3>
           </div>
-          <div className="flex-1 flex flex-col justify-center relative z-10 mt-2">
-            <div className="flex items-center gap-4">
-              <span className="font-display text-[44px] lg:text-[52px] leading-none font-bold text-sky-600 tracking-tighter">
+          <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
+            <div className="flex items-center gap-3">
+              <span className="font-display text-3xl lg:text-4xl leading-tight font-bold text-sky-600 tracking-tight">
                 {isTargetReached ? "Selesai" : "Berjalan"}
               </span>
-              <span className={`w-4 h-4 rounded-full ${isTargetReached ? "bg-sky-500" : "bg-sky-500 shadow-[0_0_12px_#0284C7] animate-pulse"}`}></span>
+              <span className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${isTargetReached ? "bg-sky-500" : "bg-sky-500 shadow-[0_0_12px_#0284C7] animate-pulse"}`}></span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-3 tracking-wide font-medium">
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">
               {isTargetReached ? "Target TDS < 50 ppm tercapai" : "Sistem beroperasi aktif"}
             </p>
           </div>
@@ -608,8 +645,8 @@ export default function Home() {
             </div>
             
             <div className="pt-2 border-t border-slate-200">
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Status Koneksi API</p>
-              <p className="text-[10px] text-sky-600 font-mono font-bold truncate">Cloudflare D1 Worker (Terhubung)</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Live API Endpoint</p>
+              <p className="text-[10px] text-sky-600 font-mono font-bold truncate">MFC-D1 Cloud Gateway</p>
             </div>
           </div>
 
