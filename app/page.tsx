@@ -101,18 +101,43 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [load]);
 
+  // Fallback 10 mock records aligned with REST API Spec Section 2
+  const fallbackHistory: Reading[] = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      { timestamp: now - 2700, tds: 380.2, voltage: 1.98 },
+      { timestamp: now - 2400, tds: 392.5, voltage: 2.05 },
+      { timestamp: now - 2100, tds: 405.0, voltage: 2.11 },
+      { timestamp: now - 1800, tds: 418.6, voltage: 2.18 },
+      { timestamp: now - 1500, tds: 425.4, voltage: 2.22 },
+      { timestamp: now - 1200, tds: 433.1, voltage: 2.26 },
+      { timestamp: now - 900,  tds: 441.8, voltage: 2.30 },
+      { timestamp: now - 600,  tds: 448.0, voltage: 2.33 },
+      { timestamp: now - 300,  tds: 452.3, voltage: 2.35 },
+      { timestamp: now,        tds: 455.0, voltage: 2.37 },
+    ];
+  }, []);
+
   // Ensure history is sorted ascending by time
   const sortedHistory = useMemo(() => {
-    if (!summary.history || summary.history.length === 0) return [];
-    return [...summary.history].sort(
+    const rawList = (summary.history && summary.history.length > 0) ? summary.history : (error ? fallbackHistory : []);
+    return [...rawList].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
-  }, [summary.history]);
+  }, [summary.history, error, fallbackHistory]);
 
-  // Latest reading
-  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : null);
-  const latestTds = latestReading?.tds ?? 337;
-  const latestVoltage = deriveVoltage(latestTds);
+  // Latest reading from API or fallback
+  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : (error ? fallbackHistory[fallbackHistory.length - 1] : null));
+  const latestTds = latestReading?.tds != null ? latestReading.tds : 455.0;
+  
+  // Dual telemetry voltage: use voltage from API if available, else derive from TDS
+  const rawVoltage = latestReading?.voltage;
+  const isVoltsUnit = rawVoltage != null ? rawVoltage <= 20 : false;
+  const latestVoltageDisplay = rawVoltage != null
+    ? (isVoltsUnit ? rawVoltage.toFixed(2) : Math.round(rawVoltage))
+    : deriveVoltage(latestTds);
+  const voltageUnit = rawVoltage != null ? (isVoltsUnit ? "V" : "mV") : "mV";
+
   const lastUpdateTimeStr = latestReading ? formatFullDateTime(latestReading.timestamp) : "Belum ada data";
 
   // Compute Linear Regression Slope from the last 8 data points
@@ -135,7 +160,7 @@ export default function Home() {
 
     for (let i = 0; i < N; i++) {
       const x = i;
-      const y = last8[i].tds;
+      const y = last8[i].tds ?? 0;
       sumX += x;
       sumY += y;
       sumXY += x * y;
@@ -157,29 +182,34 @@ export default function Home() {
   // Calculate 8 predicted future data points based on slope
   const { chartData, timeTo50String, isTargetReached } = useMemo(() => {
     if (sortedHistory.length === 0) {
-      // Fallback data if API returns empty
       const mock = Array.from({ length: 8 }).map((_, i) => ({
         time: `0${i + 8}:00`.slice(-5),
         fullTime: `Point ${i + 1}`,
         tds: Math.max(100, 500 - i * 45),
-        voltage: 200 + i * 30,
+        voltage: 2.0 + i * 0.05,
         isPrediction: false,
       }));
       return { chartData: mock, timeTo50String: "± 8 jam", isTargetReached: false };
     }
 
-    // 1. Real data points
-    const realPoints = sortedHistory.map((d) => ({
-      time: formatTime(d.timestamp),
-      fullTime: formatFullDateTime(d.timestamp),
-      tds: d.tds,
-      voltage: deriveVoltage(d.tds),
-      isPrediction: false,
-    }));
+    // 1. Real data points from Telemetry API
+    const realPoints = sortedHistory.map((d) => {
+      const tdsVal = d.tds ?? 0;
+      const vVal = d.voltage != null 
+        ? d.voltage 
+        : (deriveVoltage(tdsVal) / 1000);
+      return {
+        time: formatTime(d.timestamp),
+        fullTime: formatFullDateTime(d.timestamp),
+        tds: tdsVal,
+        voltage: vVal,
+        isPrediction: false,
+      };
+    });
 
     const lastReal = sortedHistory[sortedHistory.length - 1];
     const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
-    const lastRealTds = lastReal.tds;
+    const lastRealTds = lastReal.tds ?? 0;
 
     // 2. Generate 8 predicted points extending from last real data point
     const predictedPoints = [];
@@ -188,11 +218,12 @@ export default function Home() {
     for (let k = 1; k <= 8; k++) {
       const predTimeMs = lastRealTimeMs + k * timeStepMs;
       const predTds = Math.max(0, Math.round(lastRealTds + k * slope));
+      const predV = deriveVoltage(predTds) / 1000;
       predictedPoints.push({
         time: formatTime(predTimeMs),
         fullTime: `${formatFullDateTime(predTimeMs)} (Prediksi #${k})`,
         tds: predTds,
-        voltage: deriveVoltage(predTds),
+        voltage: Number(predV.toFixed(2)),
         isPrediction: true,
       });
     }
@@ -279,11 +310,11 @@ export default function Home() {
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-4xl lg:text-5xl leading-tight font-bold text-sky-600 tracking-tight">
-                {isLoading ? "..." : latestVoltage}
+                {isLoading ? "..." : latestVoltageDisplay}
               </span>
-              <span className="text-slate-500 text-lg font-medium tracking-wide">mV</span>
+              <span className="text-slate-500 text-lg font-medium tracking-wide">{voltageUnit}</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Tegangan yang dihasilkan mikroba</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Tegangan yang dihasilkan mikroba (Dual Telemetry API)</p>
           </div>
         </MagneticCard>
 
