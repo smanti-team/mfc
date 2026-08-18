@@ -27,7 +27,7 @@ export default function TrendChart({ history }: { history: Reading[] }) {
             Last {data.length || 10} readings
           </h2>
         </div>
-        <span className="hidden font-mono text-xs text-muted sm:block">ppm over time</span>
+        <span className="hidden font-mono text-xs text-muted sm:block">mg/L over time</span>
       </div>
 
       {data.length === 0 ? (
@@ -71,7 +71,7 @@ export default function TrendChart({ history }: { history: Reading[] }) {
                   color: "#E7F2ED",
                 }}
                 labelStyle={{ color: "#8FADA3" }}
-                formatter={(value: number) => [`${value.toLocaleString()} ppm`, "TDS"]}
+                formatter={(value: number) => [`${value.toLocaleString()} mg/L`, "TDS"]}
               />
               <Area
                 type="monotone"

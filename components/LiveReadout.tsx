@@ -34,7 +34,7 @@ export default function LiveReadout({ reading }: { reading: Reading | null }) {
             <span className="font-mono text-glow text-6xl font-bold leading-none text-signal sm:text-8xl">
               {reading && reading.tds != null ? reading.tds.toLocaleString() : "—"}
             </span>
-            <span className="font-mono text-xl text-muted sm:text-2xl">ppm TDS</span>
+            <span className="font-mono text-xl text-muted sm:text-2xl">mg/L TDS</span>
           </div>
           <p className="mt-3 font-display text-sm text-muted sm:text-base">
             Total dissolved solids in the bioreactor chamber

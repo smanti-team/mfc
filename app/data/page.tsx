@@ -337,7 +337,7 @@ export default function DataPenelitianPage() {
     return {
       totalCount,
       durasiStr: durasiStr === "0 menit" ? "1 jam 03 menit" : durasiStr,
-      latestTdsStr: `${latestTds.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ppm`,
+      latestTdsStr: `${latestTds.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L`,
       latestVoltStr: `${latestVolt.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} V`,
     };
   }, [praSiklusList]);
@@ -369,7 +369,7 @@ export default function DataPenelitianPage() {
       return {
         tanggal: formatDate(d.timestamp),
         jam: formatFullTime(d.timestamp),
-        tdsStr: `${(d.tds ?? 956.84).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ppm`,
+        tdsStr: `${(d.tds ?? 956.84).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L`,
         voltageStr: `${v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} V`,
         catatan,
       };
@@ -589,7 +589,7 @@ export default function DataPenelitianPage() {
                       ticks={[700, 800, 900, 1000, 1100, 1200]}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
-                      label={{ value: "TDS (ppm)", angle: -90, position: "insideLeft", offset: 12, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      label={{ value: "TDS (mg/L)", angle: -90, position: "insideLeft", offset: 12, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}

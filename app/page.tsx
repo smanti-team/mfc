@@ -38,7 +38,7 @@ function formatFullDateTime(ts: string | number) {
   });
 }
 
-// Custom Dot Renderer for TDS Chart
+// Custom Dot Renderer for TDS Chart (shows gray prediction dots for TDS)
 const RenderTdsDot = (props: any) => {
   const { cx, cy, payload } = props;
   if (cx == null || cy == null) return null;
@@ -65,39 +65,6 @@ const RenderTdsActiveDot = (props: any) => {
       cy={cy}
       r={6}
       fill={isPred ? "#94A3B8" : "#0284C7"}
-      stroke="#FFFFFF"
-      strokeWidth={2}
-    />
-  );
-};
-
-// Custom Dot Renderer for Voltage Chart
-const RenderVoltDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (cx == null || cy == null) return null;
-  const isPred = payload?.isPrediction;
-  return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={4}
-      fill={isPred ? "#94A3B8" : "#FFFFFF"}
-      stroke={isPred ? "#94A3B8" : "#16A34A"}
-      strokeWidth={2}
-    />
-  );
-};
-
-const RenderVoltActiveDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (cx == null || cy == null) return null;
-  const isPred = payload?.isPrediction;
-  return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={6}
-      fill={isPred ? "#94A3B8" : "#16A34A"}
       stroke="#FFFFFF"
       strokeWidth={2}
     />
@@ -199,7 +166,7 @@ export default function Home() {
     return { slope, timeStepMs, count: N };
   }, [sortedHistory]);
 
-  // TDS & Voltage Chart Data with ALWAYS 8 Gray Prediction Nodes
+  // TDS Chart Data with 8 Gray Prediction Nodes & Voltage Chart Data (ONLY ACTUAL VOLTAGE DATA, NO PREDICTION NODES)
   const { tdsChartData, voltageChartData, remainingTimeString, isTargetReached } = useMemo(() => {
     const targetThreshold = 1000;
 
@@ -224,21 +191,16 @@ export default function Home() {
     const lastReal = sortedHistory[sortedHistory.length - 1];
     const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
     const lastRealTds = lastReal.tds ?? 1068.89;
-    const lastRealVolt = lastReal.voltage != null ? (lastReal.voltage <= 20 ? lastReal.voltage : lastReal.voltage / 1000) : 0.20;
 
     const { slope, timeStepMs } = slopeAnalysis;
 
-    // 2. ALWAYS Generate 8 Gray Prediction Nodes extending to the right for BOTH charts
+    // 2. Generate 8 Gray Prediction Nodes FOR TDS CHART ONLY
     const predTdsPoints = [];
-    const predVoltPoints = [];
-
-    // Use slope for trend, or fallback downward trend for demonstration if slope >= 0
     const activeSlope = slope < 0 ? slope : -12.5;
 
     for (let k = 1; k <= 8; k++) {
       const predTimeMs = lastRealTimeMs + k * timeStepMs;
       const predTds = Math.max(0, Math.round(lastRealTds + k * activeSlope));
-      const predVolt = Number(Math.max(0.05, lastRealVolt).toFixed(2));
 
       predTdsPoints.push({
         time: formatTime(predTimeMs),
@@ -246,17 +208,9 @@ export default function Home() {
         tds: predTds,
         isPrediction: true,
       });
-
-      predVoltPoints.push({
-        time: formatTime(predTimeMs),
-        fullTime: `${formatFullDateTime(predTimeMs)} (Prediksi #${k})`,
-        voltage: predVolt,
-        isPrediction: true,
-      });
     }
 
     const combinedTdsData = [...realTdsPoints, ...predTdsPoints];
-    const combinedVoltData = [...realVoltPoints, ...predVoltPoints];
 
     let timeStr = "";
     let targetReached = false;
@@ -283,7 +237,7 @@ export default function Home() {
 
     return {
       tdsChartData: combinedTdsData,
-      voltageChartData: combinedVoltData,
+      voltageChartData: realVoltPoints, // ONLY actual voltage telemetry data (NO prediction nodes)
       remainingTimeString: timeStr,
       isTargetReached: targetReached,
     };
@@ -516,7 +470,7 @@ export default function Home() {
           </div>
         </Card>
 
-        {/* Right Chart: Grafik Tegangan MFC (dengan 8 Node Prediksi Abu-abu & type="linear") */}
+        {/* Right Chart: Grafik Tegangan MFC (HANYA DATA AKTUAL, TANPA NODE PREDIKSI ABU-ABU) */}
         <Card className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -525,10 +479,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4 text-xs font-medium">
               <span className="flex items-center gap-1.5 text-slate-800">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span> Data Aktual
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8]"></span> 8 Node Prediksi (Abu-abu)
+                <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span> Data Tegangan Aktual (V)
               </span>
             </div>
           </div>
@@ -553,14 +504,9 @@ export default function Home() {
                         <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
                           <p className="text-slate-900 font-semibold">{data.fullTime || data.time}</p>
                           <div className="flex items-center gap-2">
-                            <span className={data.isPrediction ? "text-slate-600 font-semibold" : "text-emerald-700 font-bold"}>
+                            <span className="text-emerald-700 font-bold">
                               Tegangan: {data.voltage.toFixed(2).replace('.', ',')} V
                             </span>
-                            {data.isPrediction && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-mono border border-slate-200">
-                                ⚪ Node Prediksi
-                              </span>
-                            )}
                           </div>
                         </div>
                       );
@@ -576,8 +522,8 @@ export default function Home() {
                   strokeWidth={2.5} 
                   fillOpacity={1} 
                   fill="url(#colorVolt)" 
-                  dot={<RenderVoltDot />} 
-                  activeDot={<RenderVoltActiveDot />} 
+                  dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }} 
+                  activeDot={{ r: 6, fill: '#16A34A' }} 
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -585,11 +531,7 @@ export default function Home() {
           <div className="flex justify-center mt-2 items-center gap-4 text-xs text-slate-600 font-medium">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-[#16A34A]"></div>
-              <span>Node Tegangan Aktual (Biru/Hijau)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-[#94A3B8]"></div>
-              <span>8 Node Prediksi (Abu-abu)</span>
+              <span>Node Tegangan Aktual (V)</span>
             </div>
           </div>
         </Card>
@@ -633,7 +575,7 @@ export default function Home() {
               </div>
               <div className="pt-1 flex flex-col justify-between">
                 <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Generate 8 Node Abu-abu</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik.</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik TDS.</p>
               </div>
             </div>
             
