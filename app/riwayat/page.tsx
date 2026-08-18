@@ -157,7 +157,7 @@ export default function RiwayatPage() {
 
   // Compute TDS change label & formatted value
   const tdsChangeAnalysis = useMemo(() => {
-    if (!selectedBatch) return { label: "Perubahan TDS", text: "0 ppm (0%)", isDecrease: true };
+    if (!selectedBatch) return { label: "Perubahan TDS", text: "0 mg/L (0%)", isDecrease: true };
     const diff = selectedBatch.tdsStart - selectedBatch.tdsEnd;
     const absDiff = Math.abs(diff);
     const pct = selectedBatch.tdsStart > 0 ? Math.abs(Math.round((diff / selectedBatch.tdsStart) * 100)) : 0;
@@ -165,13 +165,13 @@ export default function RiwayatPage() {
     if (diff >= 0) {
       return {
         label: "Penurunan TDS",
-        text: `${absDiff} ppm (${pct}%)`,
+        text: `${absDiff} mg/L (${pct}%)`,
         isDecrease: true
       };
     } else {
       return {
         label: "Kenaikan TDS",
-        text: `${absDiff} ppm (${pct}%)`,
+        text: `${absDiff} mg/L (${pct}%)`,
         isDecrease: false
       };
     }
@@ -278,8 +278,8 @@ export default function RiwayatPage() {
                   <th className="pb-3 font-medium px-2">ID Batch</th>
                   <th className="pb-3 font-medium px-2">Mulai</th>
                   <th className="pb-3 font-medium px-2">Selesai</th>
-                  <th className="pb-3 font-medium px-2">TDS Awal <br/><span className="text-[10px]">(ppm)</span></th>
-                  <th className="pb-3 font-medium px-2">TDS Akhir <br/><span className="text-[10px]">(ppm)</span></th>
+                  <th className="pb-3 font-medium px-2">TDS Awal <br/><span className="text-[10px]">(mg/L)</span></th>
+                  <th className="pb-3 font-medium px-2">TDS Akhir <br/><span className="text-[10px]">(mg/L)</span></th>
                   <th className="pb-3 font-medium px-2">Durasi</th>
                   <th className="pb-3 font-medium px-2">Status</th>
                 </tr>
@@ -355,13 +355,13 @@ export default function RiwayatPage() {
                 <div className="flex items-center gap-2 text-muted">
                   <Activity size={14} /> TDS Awal
                 </div>
-                <div className="text-fog font-medium">{selectedBatch?.tdsStart ?? 0} ppm</div>
+                <div className="text-fog font-medium">{selectedBatch?.tdsStart ?? 0} mg/L</div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-muted">
                   <Activity size={14} /> TDS Akhir
                 </div>
-                <div className="text-fog font-medium">{selectedBatch?.tdsEnd ?? 0} ppm</div>
+                <div className="text-fog font-medium">{selectedBatch?.tdsEnd ?? 0} mg/L</div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-signal">
