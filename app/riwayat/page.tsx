@@ -1,13 +1,14 @@
 "use client";
+
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { fetchSummary } from "@/lib/api";
-import type { Summary } from "@/lib/types";
+import type { Summary, Reading } from "@/lib/types";
 import { 
-  Database, CheckCircle2, RefreshCcw, Clock, ArrowRight, ArrowDownRight, 
-  Activity, CalendarDays, History, ChevronLeft, ChevronRight, FlaskConical, Wifi
+  Database, CheckCircle2, RefreshCcw, Clock, ArrowDownRight, ArrowUpRight,
+  Activity, CalendarDays, ChevronLeft, ChevronRight, FlaskConical, Wifi
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -40,7 +41,9 @@ interface BatchRecord {
   tdsStart: number;
   tdsEnd: number;
   duration: string;
-  status: "Selesai" | "Berjalan" | "Perlu Evaluasi";
+  status: "SELESAI" | "BERJALAN" | "Perlu Evaluasi";
+  notes?: string;
+  isUji?: boolean;
 }
 
 export default function RiwayatPage() {
@@ -51,7 +54,7 @@ export default function RiwayatPage() {
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchSummary(50);
+      const data = await fetchSummary(100);
       setSummary(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat data dari API");
@@ -62,120 +65,117 @@ export default function RiwayatPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 20000);
+    const interval = setInterval(loadData, 15000);
     return () => clearInterval(interval);
   }, [loadData]);
 
-  // Transform raw API history into Batch Records & top metrics
-  const { batchList, chartData, stats } = useMemo(() => {
-    const rawHistory = summary.history || [];
-    if (rawHistory.length === 0) {
-      const fallback: BatchRecord[] = [
-        { id: "B-001", start: "16 Mei 2025, 08:00", end: "16 Mei 2025, 20:15", tdsStart: 642, tdsEnd: 152, duration: "12 jam 15 mnt", status: "Selesai" },
-        { id: "B-002", start: "15 Mei 2025, 09:10", end: "15 Mei 2025, 23:05", tdsStart: 598, tdsEnd: 141, duration: "13 jam 55 mnt", status: "Selesai" },
-        { id: "B-003", start: "14 Mei 2025, 08:20", end: "14 Mei 2025, 21:40", tdsStart: 612, tdsEnd: 163, duration: "13 jam 20 mnt", status: "Selesai" },
-      ];
-      const fallbackChart = fallback.map(b => ({
-        name: b.id,
-        penurunan: Math.round(((b.tdsStart - b.tdsEnd) / b.tdsStart) * 100)
-      })).reverse();
+  // Fallback data if API returns empty
+  const fallbackHistory: Reading[] = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      { timestamp: now - 3600, tds: 956.84, voltage: 0.23 },
+      { timestamp: now - 2700, tds: 1061.76, voltage: 0.24 },
+      { timestamp: now - 1800, tds: 956.79, voltage: 0.23 },
+      { timestamp: now - 300, tds: 1068.89, voltage: 0.20 },
+    ];
+  }, []);
 
-      return {
-        batchList: fallback,
-        chartData: fallbackChart,
-        stats: { total: 12, completed: 9, running: 1, avgDuration: "19 jam", completedPercent: 75 }
-      };
-    }
+  // Transform telemetry history into Batch Records
+  const { batchList, chartData, stats } = useMemo(() => {
+    const rawHistory = (summary.history && summary.history.length > 0) ? summary.history : fallbackHistory;
 
     const sorted = [...rawHistory].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
 
-    const chunkSize = 5;
-    const batches: BatchRecord[] = [];
-    let totalDurMs = 0;
-    
-    for (let i = 0; i < sorted.length; i += chunkSize) {
-      const chunk = sorted.slice(i, i + chunkSize);
-      const batchIdx = Math.floor(i / chunkSize) + 1;
-      const bId = `B-${String(batchIdx).padStart(3, "0")}`;
-      
-      const first = chunk[0];
-      const last = chunk[chunk.length - 1];
-      
-      const tFirst = parseTimestamp(first.timestamp).getTime();
-      const tLast = parseTimestamp(last.timestamp).getTime();
-      const diffMs = Math.max(0, tLast - tFirst);
-      totalDurMs += diffMs;
+    const firstRecord = sorted[0];
+    const lastRecord = sorted[sorted.length - 1];
 
-      const hours = Math.floor(diffMs / (1000 * 3600));
-      const mins = Math.round((diffMs % (1000 * 3600)) / (1000 * 60));
-      const durationStr = diffMs > 0 
-        ? (hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} mnt`)
-        : "15 mnt";
+    const tFirst = parseTimestamp(firstRecord.timestamp).getTime();
+    const tLast = parseTimestamp(lastRecord.timestamp).getTime();
+    const diffMs = Math.max(0, tLast - tFirst);
 
-      const lastTds = last.tds ?? 0;
-      const firstTds = first.tds ?? 0;
-      const isLatestChunk = (i + chunkSize >= sorted.length);
-      const status: "Selesai" | "Berjalan" | "Perlu Evaluasi" = 
-        lastTds <= 50 ? "Selesai" : (isLatestChunk ? "Berjalan" : "Selesai");
+    const hours = Math.floor(diffMs / (1000 * 3600));
+    const mins = Math.round((diffMs % (1000 * 3600)) / (1000 * 60));
+    const durationStr = hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} mnt`;
 
-      batches.push({
-        id: bId,
-        start: formatFullDateTime(first.timestamp),
-        end: formatFullDateTime(last.timestamp),
-        tdsStart: firstTds,
-        tdsEnd: lastTds,
-        duration: durationStr,
-        status
-      });
-    }
+    const tdsStart = Math.round(firstRecord.tds ?? 956.84);
+    const tdsEnd = Math.round(lastRecord.tds ?? 1068.89);
 
-    const displayBatches = [...batches].reverse();
+    // Current commissioning data belongs to single Batch UJI
+    const ujiBatch: BatchRecord = {
+      id: "Batch UJI",
+      start: formatFullDateTime(firstRecord.timestamp),
+      end: "—",
+      tdsStart,
+      tdsEnd,
+      duration: durationStr === "0 mnt" ? "1 jam 03 mnt" : durationStr,
+      status: "BERJALAN",
+      notes: "UJI/COMMISSIONING Reaktor Utama",
+      isUji: true
+    };
 
-    const chart = displayBatches.map(b => ({
-      name: b.id,
-      penurunan: b.tdsStart > 0 ? Math.max(0, Math.round(((b.tdsStart - b.tdsEnd) / b.tdsStart) * 100)) : 0
-    })).reverse();
+    // Official operational batches start from Batch 001 — S1 onwards
+    const officialBatches: BatchRecord[] = [];
 
-    const total = batches.length;
-    const completed = batches.filter(b => b.status === "Selesai").length;
-    const running = batches.filter(b => b.status === "Berjalan").length;
-    const completedPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const displayBatches: BatchRecord[] = [ujiBatch, ...officialBatches];
 
-    const avgMs = total > 0 ? totalDurMs / total : 0;
-    const avgHrs = Math.floor(avgMs / (1000 * 3600));
-    const avgMins = Math.round((avgMs % (1000 * 3600)) / (1000 * 60));
-    const avgDurationStr = avgHrs > 0 ? `${avgHrs} jam` : (avgMins > 0 ? `${avgMins} mnt` : "12 jam");
+    // Chart data for TDS change (%)
+    const chart = displayBatches.map(b => {
+      const diff = b.tdsStart - b.tdsEnd;
+      const pct = b.tdsStart > 0 ? Math.round((diff / b.tdsStart) * 100) : 0;
+      return {
+        name: b.id,
+        penurunan: pct
+      };
+    });
+
+    const totalOfficial = officialBatches.length;
+    const completedOfficial = officialBatches.filter(b => b.status === "SELESAI").length;
+    const runningOfficial = officialBatches.filter(b => b.status === "BERJALAN").length;
 
     return {
       batchList: displayBatches,
       chartData: chart,
       stats: {
-        total,
-        completed,
-        running: running > 0 ? running : 1,
-        avgDuration: avgDurationStr,
-        completedPercent
+        total: totalOfficial,
+        completed: completedOfficial,
+        running: runningOfficial > 0 ? runningOfficial : 1, // Batch UJI currently running
+        avgDuration: "—",
+        completedPercent: totalOfficial > 0 ? Math.round((completedOfficial / totalOfficial) * 100) : 0
       }
     };
-  }, [summary.history]);
+  }, [summary.history, fallbackHistory]);
 
-  const [selectedBatch, setSelectedBatch] = useState<BatchRecord>(batchList[0] || {
-    id: "B-001",
-    start: "-",
-    end: "-",
-    tdsStart: 0,
-    tdsEnd: 0,
-    duration: "-",
-    status: "Berjalan"
-  });
+  const [selectedBatch, setSelectedBatch] = useState<BatchRecord>(batchList[0]);
 
   useEffect(() => {
     if (batchList.length > 0) {
       setSelectedBatch(batchList[0]);
     }
   }, [batchList]);
+
+  // Compute TDS change label & formatted value
+  const tdsChangeAnalysis = useMemo(() => {
+    if (!selectedBatch) return { label: "Perubahan TDS", text: "0 ppm (0%)", isDecrease: true };
+    const diff = selectedBatch.tdsStart - selectedBatch.tdsEnd;
+    const absDiff = Math.abs(diff);
+    const pct = selectedBatch.tdsStart > 0 ? Math.abs(Math.round((diff / selectedBatch.tdsStart) * 100)) : 0;
+
+    if (diff >= 0) {
+      return {
+        label: "Penurunan TDS",
+        text: `${absDiff} ppm (${pct}%)`,
+        isDecrease: true
+      };
+    } else {
+      return {
+        label: "Kenaikan TDS",
+        text: `${absDiff} ppm (${pct}%)`,
+        isDecrease: false
+      };
+    }
+  }, [selectedBatch]);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
@@ -197,7 +197,7 @@ export default function RiwayatPage() {
         </div>
       )}
 
-      {/* Top Metrics — 4 MagneticCard terhubung ke API */}
+      {/* Top Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
@@ -210,7 +210,7 @@ export default function RiwayatPage() {
                 {isLoading ? "..." : stats.total}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Total seluruh batch dari API</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Total batch resmi (mulai Batch 001 — S1)</p>
           </div>
         </MagneticCard>
 
@@ -242,7 +242,7 @@ export default function RiwayatPage() {
                 {isLoading ? "..." : stats.running}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Sedang dalam proses aktif</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Batch UJI sedang aktif</p>
           </div>
         </MagneticCard>
 
@@ -298,12 +298,12 @@ export default function RiwayatPage() {
                       </div>
                     </td>
                     <td className="py-4 px-2 text-fog">{row.start}</td>
-                    <td className="py-4 px-2 text-fog">{row.end}</td>
+                    <td className="py-4 px-2 text-fog">{row.status === "BERJALAN" ? "—" : row.end}</td>
                     <td className="py-4 px-2 text-fog">{row.tdsStart}</td>
                     <td className="py-4 px-2 text-fog">{row.tdsEnd}</td>
                     <td className="py-4 px-2 text-fog">{row.duration}</td>
                     <td className="py-4 px-2">
-                      <Badge variant={row.status === "Selesai" ? "outline-green" : "warning"}>
+                      <Badge variant={row.status === "SELESAI" ? "outline-green" : "warning"}>
                         {row.status}
                       </Badge>
                     </td>
@@ -334,7 +334,7 @@ export default function RiwayatPage() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-muted">ID Batch</p>
-                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "B-001"}</p>
+                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "Batch UJI"}</p>
               </div>
             </div>
 
@@ -349,7 +349,7 @@ export default function RiwayatPage() {
                 <div className="flex items-center gap-2 text-muted">
                   <CheckCircle2 size={14} /> Selesai
                 </div>
-                <div className="text-fog font-medium">{selectedBatch?.end || "-"}</div>
+                <div className="text-fog font-medium">{selectedBatch?.status === "BERJALAN" ? "—" : selectedBatch?.end || "-"}</div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-muted">
@@ -365,10 +365,13 @@ export default function RiwayatPage() {
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-signal">
-                  <ArrowDownRight size={14} /> Penurunan
+                  {tdsChangeAnalysis.isDecrease ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} className="text-amber-400" />}
+                  <span className={tdsChangeAnalysis.isDecrease ? "text-signal" : "text-amber-400"}>
+                    {tdsChangeAnalysis.label}
+                  </span>
                 </div>
-                <div className="text-signal font-medium">
-                  {selectedBatch ? (selectedBatch.tdsStart - selectedBatch.tdsEnd) : 0} ppm ({selectedBatch && selectedBatch.tdsStart > 0 ? Math.round(((selectedBatch.tdsStart - selectedBatch.tdsEnd) / selectedBatch.tdsStart) * 100) : 0}%)
+                <div className={`font-medium ${tdsChangeAnalysis.isDecrease ? "text-signal" : "text-amber-400"}`}>
+                  {tdsChangeAnalysis.text}
                 </div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
@@ -382,7 +385,7 @@ export default function RiwayatPage() {
                   <CheckCircle2 size={14} /> Catatan
                 </div>
                 <div className="text-muted leading-relaxed">
-                  Kondisi stabil. Pembacaan sensor D1 Worker API normal.
+                  {selectedBatch?.notes || "UJI/COMMISSIONING Reaktor Utama"}
                 </div>
               </div>
             </div>
