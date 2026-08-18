@@ -9,13 +9,13 @@ import {
 
 export default function TentangPage() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
       {/* Header Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 mb-8 sm:mb-10">
         <div>
           <p className="font-mono text-xs text-sky-600 font-semibold tracking-[0.2em] uppercase mb-2">Tentang Proyek</p>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-slate-900 mb-4">Tentang SMART-MFC</h1>
-          <h2 className="text-xl text-slate-800 font-medium mb-6 leading-relaxed">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">Tentang SMART-MFC</h1>
+          <h2 className="text-base sm:text-xl text-slate-800 font-medium mb-4 sm:mb-6 leading-relaxed">
             Eco-Filter &amp; Micro-Energy untuk pengolahan limbah cair organik berbasis Microbial Fuel Cell.
           </h2>
           <p className="text-slate-600 leading-relaxed text-sm md:text-base font-medium">

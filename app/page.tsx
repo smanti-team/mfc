@@ -244,17 +244,19 @@ export default function Home() {
   }, [sortedHistory, slopeAnalysis]);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <p className="text-sky-600 text-sm font-semibold mb-1">Selamat datang di</p>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">SMART-MFC Dashboard</h1>
-          <p className="text-slate-600 text-sm mt-2 font-medium">Sistem pemantauan pengolahan limbah cair organik berbasis Microbial Fuel Cell.</p>
+          <p className="text-sky-600 text-xs sm:text-sm font-semibold mb-1">Selamat datang di</p>
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">SMART-MFC Dashboard</h1>
+          <p className="text-slate-600 text-xs sm:text-sm mt-1.5 sm:mt-2 font-medium leading-relaxed">Sistem pemantauan pengolahan limbah cair organik berbasis Microbial Fuel Cell.</p>
         </div>
-        <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
-          {error ? "MODE PENGUJIAN / SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
-        </Badge>
+        <div className="self-start md:self-auto flex-shrink-0">
+          <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
+            {error ? "MODE PENGUJIAN / SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
+          </Badge>
+        </div>
       </div>
 
       {error && (
@@ -265,7 +267,7 @@ export default function Home() {
       )}
 
       {/* Top Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Metric 1: TDS Saat Ini */}
         <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
           <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
