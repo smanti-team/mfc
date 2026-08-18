@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
+import Badge from "@/components/Badge";
 import { fetchSummary } from "@/lib/api";
 import type { Summary, Reading } from "@/lib/types";
 import {
@@ -453,10 +454,9 @@ export default function DataPenelitianPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-amber-50 border border-amber-300 text-amber-800 shadow-sm">
-            <Info size={14} className="text-amber-600" />
-            SIMULASI TAMPILAN — BUKAN DATA PENELITIAN AKTUAL
-          </span>
+          <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
+            {error ? "MODE PENGUJIAN / SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
+          </Badge>
         </div>
       </div>
 
@@ -513,7 +513,7 @@ export default function DataPenelitianPage() {
                 <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Durasi Uji</h3>
               </div>
               <div className="my-auto py-1">
-                <div className="font-display text-2xl sm:text-3xl font-extrabold text-sky-600 tracking-tight leading-tight">
+                <div className="font-display text-xl sm:text-2xl font-extrabold text-sky-600 tracking-tight leading-tight">
                   {praSiklusMetrics.durasiStr}
                 </div>
               </div>
