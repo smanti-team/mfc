@@ -178,17 +178,19 @@ export default function RiwayatPage() {
   }, [selectedBatch]);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <p className="text-signal text-sm font-medium mb-1">Selamat datang di</p>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-fog">Riwayat Pengolahan</h1>
-          <p className="text-muted text-sm mt-2">Riwayat batch pengolahan limbah cair organik yang dipantau secara real-time dari D1 API.</p>
+          <p className="text-signal text-xs sm:text-sm font-medium mb-1">Selamat datang di</p>
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-fog">Riwayat Pengolahan</h1>
+          <p className="text-muted text-xs sm:text-sm mt-1.5 sm:mt-2 leading-relaxed">Riwayat batch pengolahan limbah cair organik yang dipantau secara real-time dari D1 API.</p>
         </div>
-        <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
-          {error ? "MODE SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
-        </Badge>
+        <div className="self-start md:self-auto flex-shrink-0">
+          <Badge variant={error ? "warning" : "outline-green"} icon={error ? <FlaskConical size={14} /> : <Wifi size={14} />}>
+            {error ? "MODE SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
+          </Badge>
+        </div>
       </div>
 
       {error && (
@@ -198,7 +200,7 @@ export default function RiwayatPage() {
       )}
 
       {/* Top Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <MagneticCard className="p-6 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-signal mb-6">
             <Database size={20} className="animate-float" />
