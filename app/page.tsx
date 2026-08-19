@@ -497,7 +497,7 @@ export default function Home() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                 <XAxis dataKey="time" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={15} padding={{ left: 20, right: 20 }} />
-                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 0.4]} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
+                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 0.7]} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
