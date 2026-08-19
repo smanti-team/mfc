@@ -347,14 +347,7 @@ function calculatePearsonCorrelation(readings: CycleReading[]) {
 }
 
 // Initial cycle configs
-const sampleSiklus1Readings: CycleReading[] = [
-  { hour: 0, actualTime: "17 Agu 08.15", tds: 1400, voltage: 0.596, status: "VALID" },
-  { hour: 3, actualTime: "17 Agu 11.15", tds: 1315, voltage: 0.584, status: "VALID" },
-  { hour: 6, actualTime: "17 Agu 14.15", tds: 1200, voltage: 0.590, status: "VALID" },
-  { hour: 9, actualTime: "17 Agu 17.15", tds: 1230, voltage: 0.601, status: "VALID" },
-  { hour: 12, actualTime: "17 Agu 20.15", tds: 1120, voltage: 0.596, status: "VALID" },
-  { hour: 15, actualTime: "17 Agu 23.15", tds: 1050, voltage: 0.611, status: "VALID" },
-];
+const sampleSiklus1Readings: CycleReading[] = [];
 
 const sampleSiklus2Readings: CycleReading[] = [];
 const sampleSiklus3Readings: CycleReading[] = [];
@@ -600,10 +593,10 @@ export default function DataPenelitianPage() {
     );
   }, [hardcodedPraSiklus]);
 
-  // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1
+  // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1 (Zero dummy data)
   const siklus1Readings: CycleReading[] = useMemo(() => {
     if (!summary.history || summary.history.length === 0) {
-      return sampleSiklus1Readings;
+      return [];
     }
 
     const sorted = [...summary.history].sort(
