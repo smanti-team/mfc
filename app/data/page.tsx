@@ -824,6 +824,70 @@ export default function DataPenelitianPage() {
   const endIdx = startIdx + rowsPerPage;
   const visibleCycleReadings = cycleReadings.slice(startIdx, endIdx);
 
+  const singleCycleChartData = useMemo(() => {
+    if (cycleReadings.length > 0) return cycleReadings;
+    return [
+      { hour: 0 },
+      { hour: 3 },
+      { hour: 6 },
+      { hour: 9 },
+      { hour: 12 },
+      { hour: 15 },
+    ];
+  }, [cycleReadings]);
+
+  const placeholderTableRows = useMemo(() => {
+    return [
+      { hour: 0, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 3, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 6, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 9, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 12, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 15, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+    ];
+  }, []);
+
+  const displayTableRows = useMemo(() => {
+    return cycleReadings.length > 0 ? visibleCycleReadings : placeholderTableRows;
+  }, [cycleReadings, visibleCycleReadings, placeholderTableRows]);
+
+  // Dynamic Y-Axis Domains with strict User Bounds: TDS min = 600, Voltage min = 0.0
+  const praSiklusTdsDomain = useMemo(() => {
+    if (praSiklusChartData.length === 0) return [600, 1300];
+    const vals = praSiklusChartData.map(d => d.tds).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (vals.length === 0) return [600, 1300];
+    const max = Math.max(...vals);
+    const maxDomain = Math.max(1200, Math.ceil((max + 80) / 50) * 50);
+    return [600, maxDomain];
+  }, [praSiklusChartData]);
+
+  const praSiklusVoltDomain = useMemo(() => {
+    if (praSiklusChartData.length === 0) return [0, 0.7];
+    const vals = praSiklusChartData.map(d => d.voltage).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (vals.length === 0) return [0, 0.7];
+    const max = Math.max(...vals);
+    const maxDomain = Math.max(0.7, Number((Math.ceil((max + 0.1) * 10) / 10).toFixed(2)));
+    return [0, maxDomain];
+  }, [praSiklusChartData]);
+
+  const singleCycleTdsDomain = useMemo(() => {
+    if (cycleReadings.length === 0) return [600, 1600];
+    const vals = cycleReadings.map(d => d.tds).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (vals.length === 0) return [600, 1600];
+    const max = Math.max(...vals);
+    const maxDomain = Math.max(1600, Math.ceil((max + 100) / 100) * 100);
+    return [600, maxDomain];
+  }, [cycleReadings]);
+
+  const singleCycleVoltDomain = useMemo(() => {
+    if (cycleReadings.length === 0) return [0, 0.7];
+    const vals = cycleReadings.map(d => d.voltage).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (vals.length === 0) return [0, 0.7];
+    const max = Math.max(...vals);
+    const maxDomain = Math.max(0.7, Number((Math.ceil((max + 0.1) * 10) / 10).toFixed(2)));
+    return [0, maxDomain];
+  }, [cycleReadings]);
+
   const handleDownloadCSV = () => {
     if (isPraSiklus) {
       handleDownloadPraSiklusCSV();
@@ -915,8 +979,8 @@ export default function DataPenelitianPage() {
         </div>
       </div>
 
-      {/* RENDER VIEW: SIKLUS 1, 2, atau 3 (WHEN DATA PRESENT) */}
-      {!isComparison && !isPraSiklus && !isMicroEnergy && cycleReadings.length > 0 && (
+      {/* RENDER VIEW: SIKLUS 1, 2, atau 3 */}
+      {!isComparison && !isPraSiklus && !isMicroEnergy && (
         <div className="space-y-6">
           {/* Top Section: 4 Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -965,7 +1029,7 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {overallReductionPct.toFixed(1).replace(".", ",")}%
+                  {cycleReadings.length > 0 ? `${overallReductionPct.toFixed(1).replace(".", ",")}%` : "—"}
                 </div>
               </div>
               <div>
@@ -984,7 +1048,7 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  {regressionResult.rSquaredStr}
+                  {cycleReadings.length > 0 ? regressionResult.rSquaredStr : "—"}
                 </div>
               </div>
               <div>
@@ -1005,7 +1069,7 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[280px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cycleReadings} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis
                       dataKey="hour"
@@ -1014,12 +1078,13 @@ export default function DataPenelitianPage() {
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
                       padding={{ left: 35, right: 25 }}
-                      label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      tickMargin={10}
+                      label={{ value: "Jam ke-", position: "insideBottom", offset: -20, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
                       stroke="#64748B"
                       fontSize={11}
-                      domain={['auto', 'auto']}
+                      domain={singleCycleTdsDomain}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
                       width={45}
@@ -1027,7 +1092,7 @@ export default function DataPenelitianPage() {
                     <Tooltip
                       contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
                     />
-                    <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideBottomLeft" }} />
+                    <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideTopLeft" }} />
                     <Line
                       type="monotone"
                       dataKey="tds"
@@ -1052,7 +1117,7 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[280px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cycleReadings} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis
                       dataKey="hour"
@@ -1061,12 +1126,13 @@ export default function DataPenelitianPage() {
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
                       padding={{ left: 35, right: 25 }}
-                      label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      tickMargin={10}
+                      label={{ value: "Jam ke-", position: "insideBottom", offset: -20, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
                       stroke="#64748B"
                       fontSize={11}
-                      domain={[0, 'auto']}
+                      domain={singleCycleVoltDomain}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
                       width={45}
@@ -1120,11 +1186,15 @@ export default function DataPenelitianPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                      {visibleCycleReadings.map((row, idx) => {
-                        const pctRed = baselineTds > 0 ? ((baselineTds - row.tds) / baselineTds) * 100 : 0;
-                        const pctStr = pctRed.toFixed(2).replace(".", ",") + "%";
+                      {displayTableRows.map((row: any, idx: number) => {
+                        const isReal = row.tds != null;
+                        const pctRed = (isReal && baselineTds > 0) ? ((baselineTds - row.tds) / baselineTds) * 100 : 0;
+                        const pctStr = isReal ? pctRed.toFixed(2).replace(".", ",") + "%" : "—";
+                        const tdsStr = isReal ? row.tds.toLocaleString('id-ID') : "—";
+                        const voltStr = row.voltage != null ? row.voltage.toFixed(3).replace('.', ',') : "—";
 
-                        let badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        let badgeStyle = "bg-slate-100 text-slate-500 border-slate-200";
+                        if (row.status === "VALID") badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
                         if (row.status === "PERLU VERIFIKASI") badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
                         if (row.status === "TIDAK TEREKAM") badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
 
@@ -1132,12 +1202,12 @@ export default function DataPenelitianPage() {
                           <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
                             <td className="py-2.5 px-3 font-bold text-slate-900">{row.hour}</td>
                             <td className="py-2.5 px-3 text-slate-600">{row.actualTime}</td>
-                            <td className="py-2.5 px-3 text-sky-600 font-bold">{row.tds.toLocaleString('id-ID')}</td>
+                            <td className="py-2.5 px-3 text-sky-600 font-bold">{tdsStr}</td>
                             <td className="py-2.5 px-3 text-sky-600 font-bold">{pctStr}</td>
-                            <td className="py-2.5 px-3 text-emerald-600 font-bold">{row.voltage.toFixed(3).replace('.', ',')}</td>
+                            <td className="py-2.5 px-3 text-emerald-600 font-bold">{voltStr}</td>
                             <td className="py-2.5 px-3">
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeStyle}`}>
-                                <Check size={11} /> {row.status}
+                                {isReal ? <Check size={11} /> : null} {row.status}
                               </span>
                             </td>
                           </tr>
@@ -1152,12 +1222,12 @@ export default function DataPenelitianPage() {
               <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="text-slate-500 font-medium">
-                    Menampilkan {startIdx + 1}–{Math.min(endIdx, cycleReadings.length)} dari {cycleReadings.length} data {currentCycle.name}
+                    Menampilkan {cycleReadings.length > 0 ? startIdx + 1 : 1}–{cycleReadings.length > 0 ? Math.min(endIdx, cycleReadings.length) : 6} dari {cycleReadings.length > 0 ? cycleReadings.length : 6} data {currentCycle.name}
                   </span>
                   <div className="flex items-center gap-2 font-semibold">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
+                      disabled={currentPage === 1 || cycleReadings.length === 0}
                       className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
                     >
                       ← Sebelumnya
@@ -1167,7 +1237,7 @@ export default function DataPenelitianPage() {
                     </span>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
+                      disabled={currentPage === totalPages || cycleReadings.length === 0}
                       className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
                     >
                       Selanjutnya →
@@ -1194,7 +1264,7 @@ export default function DataPenelitianPage() {
                     Persamaan Regresi:
                   </p>
                   <h4 className="font-display text-2xl font-bold text-sky-700 font-mono tracking-tight">
-                    {regressionResult.regressionEq}
+                    {cycleReadings.length > 0 ? regressionResult.regressionEq : "y = —"}
                   </h4>
                   <p className="text-[10px] text-slate-400 mt-2 font-mono">
                     y = TDS (mg/L)<br />
@@ -1212,21 +1282,21 @@ export default function DataPenelitianPage() {
                       <Clock size={15} className="text-sky-600 flex-shrink-0" />
                       Estimasi target tercapai pada:
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{regressionResult.targetHourStr}</span>
+                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.targetHourStr : "—"}</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                     <span className="flex items-center gap-2">
                       <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
-                      Estimasi sisa waktu dari data jam ke-{regressionResult.latestHour}:
+                      Estimasi sisa waktu dari data jam ke-{cycleReadings.length > 0 ? regressionResult.latestHour : 0}:
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{regressionResult.remainingStr}</span>
+                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.remainingStr : "—"}</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                     <span className="flex items-center gap-2">
                       <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
                       R² (Koefisien Determinasi):
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{regressionResult.rSquaredStr}</span>
+                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.rSquaredStr : "—"}</span>
                   </div>
                 </div>
 
@@ -1239,21 +1309,21 @@ export default function DataPenelitianPage() {
                         <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                         Prediksi waktu target
                       </span>
-                      <span className="font-mono font-bold text-sky-700">{regressionResult.targetHourStr}</span>
+                      <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.targetHourStr : "—"}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                         Waktu aktual target
                       </span>
-                      <span className="font-mono font-bold text-slate-700">{regressionResult.actualTargetHourStr}</span>
+                      <span className="font-mono font-bold text-slate-700">{cycleReadings.length > 0 ? regressionResult.actualTargetHourStr : "—"}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                         Error / Selisih
                       </span>
-                      <span className="font-mono font-bold text-slate-700">{regressionResult.errorStr}</span>
+                      <span className="font-mono font-bold text-slate-700">{cycleReadings.length > 0 ? regressionResult.errorStr : "—"}</span>
                     </div>
                     <p className="text-[10px] text-slate-400 italic pt-1">
                       (Waktu aktual target akan otomatis terisi jika TDS ≤1.000 mg/L tercapai)
@@ -1339,124 +1409,27 @@ export default function DataPenelitianPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">Pearson r</span>
-                    <span className="font-mono font-extrabold text-base text-sky-700">{pearsonResult.rStr}</span>
+                    <span className="font-mono font-extrabold text-base text-sky-700">{cycleReadings.length > 0 ? pearsonResult.rStr : "—"}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">p-value</span>
-                    <span className="font-mono font-extrabold text-base text-sky-700">{pearsonResult.pValueStr}</span>
+                    <span className="font-mono font-extrabold text-base text-sky-700">{cycleReadings.length > 0 ? pearsonResult.pValueStr : "—"}</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">n (jumlah data)</span>
-                    <span className="font-mono font-extrabold text-base text-sky-700">{pearsonResult.n}</span>
+                    <span className="font-mono font-extrabold text-base text-sky-700">{cycleReadings.length}</span>
                   </div>
                 </div>
 
                 <div className="mt-6 p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2">
                   <h5 className="font-bold text-xs text-amber-900">Interpretasi:</h5>
                   <p className="text-xs font-semibold text-amber-950 leading-relaxed">
-                    {pearsonResult.interpretation}
+                    {cycleReadings.length > 0 ? pearsonResult.interpretation : "Belum ada data pengujian pada siklus ini. Perhitungan korelasi Pearson akan terisi otomatis setelah pengujian dilakukan."}
                   </p>
                 </div>
               </div>
             </Card>
           </div>
-        </div>
-      )}
-
-      {/* RENDER VIEW: SIKLUS 1, 2, atau 3 (WHEN NO DATA READINGS) */}
-      {!isComparison && !isPraSiklus && !isMicroEnergy && cycleReadings.length === 0 && (
-        <div className="space-y-6">
-          {/* Top Section: 4 Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Database size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Jumlah Data</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-4xl sm:text-[42px] font-extrabold text-slate-400 tracking-tight">
-                  0
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  Titik Data {currentCycle.name}
-                </p>
-              </div>
-            </MagneticCard>
-
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Clock size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Interval</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-3xl sm:text-4xl font-extrabold text-slate-400 tracking-tight">
-                  —
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Belum Ada Pengukuran</p>
-              </div>
-            </MagneticCard>
-
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Droplet size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Penurunan TDS</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-3xl sm:text-4xl font-extrabold text-slate-400 tracking-tight">
-                  —
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  Baseline {currentCycle.name}
-                </p>
-              </div>
-            </MagneticCard>
-
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Target size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">R² Regresi</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-4xl sm:text-[42px] font-extrabold text-slate-400 tracking-tight">
-                  —
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Koefisien Determinasi</p>
-              </div>
-            </MagneticCard>
-          </div>
-
-          {/* Unstarted Cycle Notice Card */}
-          <Card className="p-8 sm:p-12 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center shadow-sm">
-              <Clock size={32} />
-            </div>
-            <h3 className="font-display font-bold text-xl text-slate-900">
-              Tahap {activeTab} Belum Dimulai
-            </h3>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed font-medium">
-              Pengujian {activeTab} belum dilakukan oleh tim peneliti. Data telemetri akan tercatat otomatis dari API Cloud Gateway setelah pengujian Pra-Siklus selesai.
-            </p>
-            <div className="pt-2 flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
-              <Info size={14} className="text-amber-600 flex-shrink-0" />
-              <span>Status Pengujian Aktif saat ini: <strong>Pra-Siklus (Reaktor Utama)</strong></span>
-            </div>
-          </Card>
         </div>
       )}
 
@@ -1559,10 +1532,10 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={comparisonChartData.length > 0 ? comparisonChartData : singleCycleChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 35, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[800, 1600]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[600, 1600]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
                     <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} />
                     <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideBottomLeft" }} />
                     <Line type="monotone" dataKey="s1Tds" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={RenderMultiTdsDot("s1Tds", "#0284C7")} />
@@ -1596,10 +1569,10 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={comparisonChartData.length > 0 ? comparisonChartData : singleCycleChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 35, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0.4, 0.7]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[0, 0.7]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
                     <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} />
                     <Line type="monotone" dataKey="s1Volt" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={RenderMultiVoltDot("s1Volt", "#0284C7")} />
                     <Line type="monotone" dataKey="s2Volt" name="Siklus 2" stroke="#D97706" strokeWidth={2} dot={RenderMultiVoltDot("s2Volt", "#D97706")} />
@@ -1830,7 +1803,7 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                       <XAxis
                         dataKey="waktu"
@@ -1839,11 +1812,12 @@ export default function DataPenelitianPage() {
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
                         padding={{ left: 35, right: 25 }}
+                        tickMargin={10}
                       />
                       <YAxis
                         stroke="#64748B"
                         fontSize={11}
-                        domain={['auto', 'auto']}
+                        domain={praSiklusTdsDomain}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
                         width={45}
@@ -1875,7 +1849,7 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                       <XAxis
                         dataKey="waktu"
@@ -1884,11 +1858,12 @@ export default function DataPenelitianPage() {
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
                         padding={{ left: 35, right: 25 }}
+                        tickMargin={10}
                       />
                       <YAxis
                         stroke="#64748B"
                         fontSize={11}
-                        domain={[0, 'auto']}
+                        domain={praSiklusVoltDomain}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
                         width={45}
