@@ -67,83 +67,102 @@ export default function RiwayatPage() {
     loadData();
   }, [loadData]);
 
-  // Fallback data if API returns empty
-  const fallbackHistory: Reading[] = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    return [
-      { timestamp: now - 3600, tds: 956.84, voltage: 0.23 },
-      { timestamp: now - 2700, tds: 1061.76, voltage: 0.24 },
-      { timestamp: now - 1800, tds: 956.79, voltage: 0.23 },
-      { timestamp: now - 300, tds: 1068.89, voltage: 0.20 },
-    ];
+  // 1. Permanent Hardcoded Batch UJI (Pra-Siklus Commissioning Batch)
+  const ujiBatch: BatchRecord = useMemo(() => {
+    return {
+      id: "Batch UJI",
+      start: "18 Agu 2026, 12.39",
+      end: "18 Agu 2026, 21.50",
+      tdsStart: 1159,
+      tdsEnd: 1175,
+      duration: "9 jam 11 mnt",
+      status: "SELESAI",
+      notes: "Uji/commissioning Reaktor Utama (Pra-Siklus Hardcode)",
+      isUji: true,
+    };
   }, []);
 
-  // Transform telemetry history into Batch Records
+  // 2. Transform Siklus 1 live API telemetry into Batch 001 (Newer batch)
   const { batchList, chartData, stats } = useMemo(() => {
-    const rawHistory = (summary.history && summary.history.length > 0) ? summary.history : fallbackHistory;
+    const hasLiveApi = summary.history && summary.history.length > 0;
 
-    const sorted = [...rawHistory].sort(
-      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
-    );
+    let batch001: BatchRecord;
 
-    const firstRecord = sorted[0];
-    const lastRecord = sorted[sorted.length - 1];
+    if (hasLiveApi) {
+      const sorted = [...summary.history].sort(
+        (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
+      );
 
-    const tFirst = parseTimestamp(firstRecord.timestamp).getTime();
-    const tLast = parseTimestamp(lastRecord.timestamp).getTime();
-    const diffMs = Math.max(0, tLast - tFirst);
+      const firstRecord = sorted[0];
+      const lastRecord = sorted[sorted.length - 1];
 
-    const hours = Math.floor(diffMs / (1000 * 3600));
-    const mins = Math.round((diffMs % (1000 * 3600)) / (1000 * 60));
-    const durationStr = hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} mnt`;
+      const tFirst = parseTimestamp(firstRecord.timestamp).getTime();
+      const tLast = parseTimestamp(lastRecord.timestamp).getTime();
+      const diffMs = Math.max(0, tLast - tFirst);
 
-    const tdsStart = Math.round(firstRecord.tds ?? 956.84);
-    const tdsEnd = Math.round(lastRecord.tds ?? 1068.89);
+      const hours = Math.floor(diffMs / (1000 * 3600));
+      const mins = Math.round((diffMs % (1000 * 3600)) / (1000 * 60));
+      const durationStr = hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} mnt`;
 
-    // Current commissioning data belongs to single Batch UJI
-    const ujiBatch: BatchRecord = {
-      id: "Batch UJI",
-      start: formatFullDateTime(firstRecord.timestamp),
-      end: "—",
-      tdsStart,
-      tdsEnd,
-      duration: durationStr === "0 mnt" ? "1 jam 03 mnt" : durationStr,
-      status: "BERJALAN",
-      notes: "UJI/COMMISSIONING Reaktor Utama",
-      isUji: true
-    };
+      const tdsStart = firstRecord.tds != null ? Number(firstRecord.tds.toFixed(2)) : 0;
+      const tdsEnd = lastRecord.tds != null ? Number(lastRecord.tds.toFixed(2)) : 0;
 
-    // Official operational batches start from Batch 001 — S1 onwards
-    const officialBatches: BatchRecord[] = [];
+      const isComplete = tdsEnd > 0 && tdsEnd <= 1000;
 
-    const displayBatches: BatchRecord[] = [ujiBatch, ...officialBatches];
+      batch001 = {
+        id: "Batch 001",
+        start: formatFullDateTime(firstRecord.timestamp),
+        end: isComplete ? formatFullDateTime(lastRecord.timestamp) : "—",
+        tdsStart,
+        tdsEnd,
+        duration: durationStr === "0 mnt" ? "0 jam 00 mnt" : durationStr,
+        status: isComplete ? "SELESAI" : "BERJALAN",
+        notes: "Siklus 1 (Live Telemetri Reaktor Utama)",
+        isUji: false,
+      };
+    } else {
+      batch001 = {
+        id: "Batch 001",
+        start: "—",
+        end: "—",
+        tdsStart: 0,
+        tdsEnd: 0,
+        duration: "—",
+        status: "BERJALAN",
+        notes: "Siklus 1 (Menunggu Telemetri Live ESP32)",
+        isUji: false,
+      };
+    }
+
+    // NEWEST BATCH (Batch 001) MUST BE AT THE TOP ABOVE OLDER BATCH (Batch UJI)!
+    const displayBatches: BatchRecord[] = [batch001, ujiBatch];
 
     // Chart data for TDS change (%)
-    const chart = displayBatches.map(b => {
+    const chart = displayBatches.map((b) => {
       const diff = b.tdsStart - b.tdsEnd;
       const pct = b.tdsStart > 0 ? Math.round((diff / b.tdsStart) * 100) : 0;
       return {
         name: b.id,
-        penurunan: pct
+        penurunan: pct,
       };
     });
 
-    const totalOfficial = officialBatches.length;
-    const completedOfficial = officialBatches.filter(b => b.status === "SELESAI").length;
-    const runningOfficial = officialBatches.filter(b => b.status === "BERJALAN").length;
+    const totalCount = displayBatches.length;
+    const completedCount = displayBatches.filter((b) => b.status === "SELESAI").length;
+    const runningCount = displayBatches.filter((b) => b.status === "BERJALAN").length;
 
     return {
       batchList: displayBatches,
       chartData: chart,
       stats: {
-        total: totalOfficial,
-        completed: completedOfficial,
-        running: runningOfficial > 0 ? runningOfficial : 1, // Batch UJI currently running
+        total: 1,
+        completed: 0,
+        running: 1,
         avgDuration: "—",
-        completedPercent: totalOfficial > 0 ? Math.round((completedOfficial / totalOfficial) * 100) : 0
-      }
+        completedPercent: 0,
+      },
     };
-  }, [summary.history, fallbackHistory]);
+  }, [summary.history, ujiBatch]);
 
   const [selectedBatch, setSelectedBatch] = useState<BatchRecord>(batchList[0]);
 
@@ -210,7 +229,7 @@ export default function RiwayatPage() {
                 {isLoading ? "..." : stats.total}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Total batch resmi (mulai Batch 001 — S1)</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">TOTAL BATCH RESMI</p>
           </div>
         </MagneticCard>
 
@@ -226,7 +245,7 @@ export default function RiwayatPage() {
               </span>
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">
-              {stats.completedPercent}% dari total batch
+              0% DARI TOTAL BATCH
             </p>
           </div>
         </MagneticCard>
@@ -242,7 +261,7 @@ export default function RiwayatPage() {
                 {isLoading ? "..." : stats.running}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Batch UJI sedang aktif</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">BATCH 001 — SIKLUS 1 SEDANG AKTIF</p>
           </div>
         </MagneticCard>
 
@@ -257,7 +276,7 @@ export default function RiwayatPage() {
                 {stats.avgDuration}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">Durasi rata-rata per batch</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">DURASI RATA-RATA PER BATCH</p>
           </div>
         </MagneticCard>
       </div>
