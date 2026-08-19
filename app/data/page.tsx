@@ -987,7 +987,7 @@ export default function DataPenelitianPage() {
 
   const singleCycleTdsDomain = useMemo(() => {
     if (cycleReadings.length === 0) return [600, 1600];
-    const vals = cycleReadings.map(d => d.tds).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    const vals = cycleReadings.map(d => d.tds).filter((v): v is number => typeof v === 'number' && !isNaN(v) && v > 0);
     if (vals.length === 0) return [600, 1600];
     const max = Math.max(...vals);
     const maxDomain = Math.max(1600, Math.ceil((max + 100) / 100) * 100);
@@ -1185,9 +1185,9 @@ export default function DataPenelitianPage() {
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">TDS (mg/L)</p>
               </div>
-              <div className="h-[280px] w-full mt-4">
+              <div className="h-[320px] w-full mt-4 pb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
+                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 45 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis
                       dataKey="hour"
@@ -1197,7 +1197,7 @@ export default function DataPenelitianPage() {
                       axisLine={{ stroke: "#CBD5E1" }}
                       padding={{ left: 35, right: 25 }}
                       tickMargin={10}
-                      label={{ value: "Jam ke-", position: "insideBottom", offset: -20, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      label={{ value: "Jam ke-", position: "insideBottom", offset: -25, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
                       stroke="#64748B"
@@ -1233,9 +1233,9 @@ export default function DataPenelitianPage() {
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
               </div>
-              <div className="h-[280px] w-full mt-4">
+              <div className="h-[320px] w-full mt-4 pb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
+                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 45 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                     <XAxis
                       dataKey="hour"
@@ -1245,7 +1245,7 @@ export default function DataPenelitianPage() {
                       axisLine={{ stroke: "#CBD5E1" }}
                       padding={{ left: 35, right: 25 }}
                       tickMargin={10}
-                      label={{ value: "Jam ke-", position: "insideBottom", offset: -20, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      label={{ value: "Jam ke-", position: "insideBottom", offset: -25, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
                       stroke="#64748B"
