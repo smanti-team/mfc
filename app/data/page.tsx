@@ -817,6 +817,13 @@ export default function DataPenelitianPage() {
     });
   }, [cycleDataMap]);
 
+  const hasAnyCycleData = useMemo(() => {
+    const s1 = cycleDataMap["Siklus 1"]?.readings || [];
+    const s2 = cycleDataMap["Siklus 2"]?.readings || [];
+    const s3 = cycleDataMap["Siklus 3"]?.readings || [];
+    return s1.length > 0 || s2.length > 0 || s3.length > 0;
+  }, [cycleDataMap]);
+
   // Pagination for Cycle Table (Max 6 rows per page)
   const rowsPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(cycleReadings.length / rowsPerPage));
@@ -1447,11 +1454,13 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  3
+                  {hasAnyCycleData ? 3 : 0}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Siap dibandingkan</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">
+                  {hasAnyCycleData ? "Siap dibandingkan" : "Belum ada data siklus"}
+                </p>
               </div>
             </MagneticCard>
 
@@ -1464,11 +1473,13 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  1/3
+                  {hasAnyCycleData ? "1/3" : "—"}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Siklus 2 mencapai ≤1.000 mg/L</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">
+                  {hasAnyCycleData ? "Siklus 2 mencapai ≤1.000 mg/L" : "Belum ada pengujian"}
+                </p>
               </div>
             </MagneticCard>
 
@@ -1481,11 +1492,13 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  33,3%
+                  {hasAnyCycleData ? "33,3%" : "—"}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Hasil terbaik (Siklus 2)</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">
+                  {hasAnyCycleData ? "Hasil terbaik (Siklus 2)" : "Belum ada pengujian"}
+                </p>
               </div>
             </MagneticCard>
 
@@ -1498,11 +1511,13 @@ export default function DataPenelitianPage() {
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  0,95
+                  {hasAnyCycleData ? "0,95" : "—"}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Model regresi Siklus 2</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">
+                  {hasAnyCycleData ? "Model regresi Siklus 2" : "Belum ada data regresi"}
+                </p>
               </div>
             </MagneticCard>
           </div>
@@ -1637,32 +1652,41 @@ export default function DataPenelitianPage() {
                   Interpretasi Perbandingan
                 </h3>
 
-                <div className="space-y-3">
-                  <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                    <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                    <span>Tab ini digunakan untuk membandingkan hasil antar siklus, bukan untuk raw data detail.</span>
-                  </div>
+                {hasAnyCycleData ? (
+                  <div className="space-y-3">
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Tab ini digunakan untuk membandingkan hasil antar siklus, bukan untuk raw data detail.</span>
+                    </div>
 
-                  <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                    <BarChart3 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                    <span>Siklus 2 menunjukkan penurunan TDS paling cepat (33,3%) dan paling rendah pada akhir pengamatan (920 mg/L).</span>
-                  </div>
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <BarChart3 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Siklus 2 menunjukkan penurunan TDS paling cepat (33,3%) dan paling rendah pada akhir pengamatan (920 mg/L).</span>
+                    </div>
 
-                  <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                    <Target size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                    <span>Siklus 2 berhasil mencapai target operasional TDS ≤1.000 mg/L pada Jam ke-12.</span>
-                  </div>
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <Target size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Siklus 2 berhasil mencapai target operasional TDS ≤1.000 mg/L pada Jam ke-12.</span>
+                    </div>
 
-                  <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                    <Activity size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                    <span>Siklus 3 mendekati target (1.015 mg/L pada Jam ke-15) dengan tren penurunan linier yang konsisten.</span>
-                  </div>
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <Activity size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Siklus 3 mendekati target (1.015 mg/L pada Jam ke-15) dengan tren penurunan linier yang konsisten.</span>
+                    </div>
 
-                  <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                    <CheckCircle2 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                    <span>Rentang tegangan ketiga siklus relatif stabil pada kisaran sekitar 0,58–0,63 V (580–630 mV).</span>
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <CheckCircle2 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Rentang tegangan ketiga siklus relatif stabil pada kisaran sekitar 0,58–0,63 V (580–630 mV).</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3.5 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                      <Info size={18} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>Belum ada data pengujian pada Siklus 1, Siklus 2, maupun Siklus 3. Poin interpretasi perbandingan akan terisi secara otomatis setelah pengujian dilakukan.</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
