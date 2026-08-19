@@ -381,28 +381,19 @@ const emptyCycleConfig = (name: string, defaultReadings: CycleReading[] = []): S
 });
 
 const cycleDataMap: Record<string, SingleCycleConfig> = {
-  "Siklus 1": emptyCycleConfig("Siklus 1", sampleSiklus1Readings),
-  "Siklus 2": emptyCycleConfig("Siklus 2", sampleSiklus2Readings),
-  "Siklus 3": emptyCycleConfig("Siklus 3", sampleSiklus3Readings),
+  "Siklus 1": emptyCycleConfig("Siklus 1", []),
+  "Siklus 2": emptyCycleConfig("Siklus 2", []),
+  "Siklus 3": emptyCycleConfig("Siklus 3", []),
 };
 
-const comparisonChartData = [
-  { hour: 0, s1Tds: 1400, s2Tds: 1380, s3Tds: 1420, s1Volt: 0.596, s2Volt: 0.602, s3Volt: 0.588 },
-  { hour: 3, s1Tds: 1315, s2Tds: 1260, s3Tds: 1350, s1Volt: 0.584, s2Volt: 0.608, s3Volt: 0.592 },
-  { hour: 6, s1Tds: 1200, s2Tds: 1150, s3Tds: 1290, s1Volt: 0.590, s2Volt: 0.615, s3Volt: 0.595 },
-  { hour: 9, s1Tds: 1230, s2Tds: 1080, s3Tds: 1200, s1Volt: 0.601, s2Volt: 0.620, s3Volt: 0.599 },
-  { hour: 12, s1Tds: 1120, s2Tds: 980, s3Tds: 1120, s1Volt: 0.596, s2Volt: 0.624, s3Volt: 0.603 },
-  { hour: 15, s1Tds: 1050, s2Tds: 920, s3Tds: 1015, s1Volt: 0.611, s2Volt: 0.628, s3Volt: 0.607 },
-];
-
 const summaryMatrix = [
-  { param: "TDS Awal", icon: Droplet, s1: "1400 mg/L", s2: "1380 mg/L", s3: "1420 mg/L" },
-  { param: "TDS Akhir", icon: Droplet, s1: "1050 mg/L", s2: "920 mg/L", s3: "1015 mg/L" },
-  { param: "Penurunan TDS", icon: TrendingDown, s1: "25,0%", s2: "33,3%", s3: "28,5%" },
-  { param: "Tegangan Awal", icon: Activity, s1: "0,596 V", s2: "0,602 V", s3: "0,588 V" },
-  { param: "Tegangan Maksimum", icon: Activity, s1: "0,611 V", s2: "0,628 V", s3: "0,607 V" },
-  { param: "Tegangan Akhir", icon: Activity, s1: "0,611 V", s2: "0,628 V", s3: "0,607 V" },
-  { param: "R² Regresi", icon: ChartIcon, s1: "0,94", s2: "0,95", s3: "0,91" },
+  { param: "TDS Awal", icon: Droplet, s1: "—", s2: "—", s3: "—" },
+  { param: "TDS Akhir", icon: Droplet, s1: "—", s2: "—", s3: "—" },
+  { param: "Penurunan TDS", icon: TrendingDown, s1: "—", s2: "—", s3: "—" },
+  { param: "Tegangan Awal", icon: Activity, s1: "—", s2: "—", s3: "—" },
+  { param: "Tegangan Maksimum", icon: Activity, s1: "—", s2: "—", s3: "—" },
+  { param: "Tegangan Akhir", icon: Activity, s1: "—", s2: "—", s3: "—" },
+  { param: "R² Regresi", icon: ChartIcon, s1: "—", s2: "—", s3: "—" },
 ];
 
 // Summary Reaktor A (Pra-Siklus)
@@ -442,17 +433,19 @@ function formatFullTime(ts: string | number): string {
 
 // Custom Dot Renderers
 const RenderCustomTdsDot = (props: any) => {
-  const { cx, cy, payload } = props;
+  const { cx, cy, payload, index } = props;
   if (cx == null || cy == null) return <g />;
   const valStr = typeof payload.tds === 'number' 
     ? payload.tds.toLocaleString('id-ID')
     : payload.tds;
+  const isAbove = (index ?? 0) % 2 === 0;
+  const textY = isAbove ? cy - 10 : cy + 18;
   return (
     <g>
       <circle cx={cx} cy={cy} r={4} fill="#0284C7" stroke="#FFFFFF" strokeWidth={2} />
       <text
         x={cx}
-        y={cy - 10}
+        y={textY}
         fill="#0F172A"
         fontSize={11}
         fontWeight={600}
@@ -465,17 +458,19 @@ const RenderCustomTdsDot = (props: any) => {
 };
 
 const RenderCustomVoltDot = (props: any) => {
-  const { cx, cy, payload } = props;
+  const { cx, cy, payload, index } = props;
   if (cx == null || cy == null) return <g />;
   const valStr = typeof payload.voltage === 'number'
     ? payload.voltage.toFixed(3).replace('.', ',')
     : payload.voltage;
+  const isAbove = (index ?? 0) % 2 === 0;
+  const textY = isAbove ? cy - 10 : cy + 18;
   return (
     <g>
       <circle cx={cx} cy={cy} r={4} fill="#16A34A" stroke="#FFFFFF" strokeWidth={2} />
       <text
         x={cx}
-        y={cy - 10}
+        y={textY}
         fill="#0F172A"
         fontSize={11}
         fontWeight={600}
@@ -488,16 +483,18 @@ const RenderCustomVoltDot = (props: any) => {
 };
 
 const RenderMultiTdsDot = (keyName: string, color: string) => (props: any) => {
-  const { cx, cy, payload } = props;
+  const { cx, cy, payload, index } = props;
   if (cx == null || cy == null) return <g />;
   const val = payload[keyName];
   if (val == null) return <g />;
+  const isAbove = (index ?? 0) % 2 === 0;
+  const textY = isAbove ? cy - 8 : cy + 16;
   return (
     <g>
       <circle cx={cx} cy={cy} r={4} fill={color} stroke="#FFFFFF" strokeWidth={1.5} />
       <text
         x={cx}
-        y={cy - 8}
+        y={textY}
         fill="#334155"
         fontSize={10}
         fontWeight={600}
@@ -510,17 +507,19 @@ const RenderMultiTdsDot = (keyName: string, color: string) => (props: any) => {
 };
 
 const RenderMultiVoltDot = (keyName: string, color: string) => (props: any) => {
-  const { cx, cy, payload } = props;
+  const { cx, cy, payload, index } = props;
   if (cx == null || cy == null) return <g />;
   const val = payload[keyName];
   if (val == null) return <g />;
   const valStr = typeof val === 'number' ? val.toFixed(3).replace('.', ',') : val;
+  const isAbove = (index ?? 0) % 2 === 0;
+  const textY = isAbove ? cy - 8 : cy + 16;
   return (
     <g>
       <circle cx={cx} cy={cy} r={4} fill={color} stroke="#FFFFFF" strokeWidth={1.5} />
       <text
         x={cx}
-        y={cy - 8}
+        y={textY}
         fill="#334155"
         fontSize={10}
         fontWeight={600}
@@ -791,6 +790,32 @@ export default function DataPenelitianPage() {
       { x: endX, y: Number((slope * endX + intercept).toFixed(3)) },
     ];
   }, [scatterData]);
+
+  // Dynamic Comparison Chart Data
+  const comparisonChartData = useMemo(() => {
+    const s1 = cycleDataMap["Siklus 1"]?.readings || [];
+    const s2 = cycleDataMap["Siklus 2"]?.readings || [];
+    const s3 = cycleDataMap["Siklus 3"]?.readings || [];
+
+    if (s1.length === 0 && s2.length === 0 && s3.length === 0) return [];
+
+    const allHours = Array.from(new Set([...s1.map((r) => r.hour), ...s2.map((r) => r.hour), ...s3.map((r) => r.hour)])).sort((a, b) => a - b);
+
+    return allHours.map((h) => {
+      const r1 = s1.find((r) => r.hour === h);
+      const r2 = s2.find((r) => r.hour === h);
+      const r3 = s3.find((r) => r.hour === h);
+      return {
+        hour: h,
+        s1Tds: r1 ? r1.tds : undefined,
+        s2Tds: r2 ? r2.tds : undefined,
+        s3Tds: r3 ? r3.tds : undefined,
+        s1Volt: r1 ? r1.voltage : undefined,
+        s2Volt: r2 ? r2.voltage : undefined,
+        s3Volt: r3 ? r3.voltage : undefined,
+      };
+    });
+  }, [cycleDataMap]);
 
   // Pagination for Cycle Table (Max 6 rows per page)
   const rowsPerPage = 6;
@@ -1805,7 +1830,7 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 0, bottom: 25 }}>
+                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                       <XAxis
                         dataKey="waktu"
@@ -1813,6 +1838,7 @@ export default function DataPenelitianPage() {
                         fontSize={10}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
+                        padding={{ left: 35, right: 25 }}
                       />
                       <YAxis
                         stroke="#64748B"
@@ -1820,6 +1846,7 @@ export default function DataPenelitianPage() {
                         domain={['auto', 'auto']}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
+                        width={45}
                       />
                       <Tooltip
                         contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
@@ -1848,7 +1875,7 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 0, bottom: 25 }}>
+                    <LineChart data={praSiklusChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                       <XAxis
                         dataKey="waktu"
@@ -1856,6 +1883,7 @@ export default function DataPenelitianPage() {
                         fontSize={10}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
+                        padding={{ left: 35, right: 25 }}
                       />
                       <YAxis
                         stroke="#64748B"
@@ -1863,6 +1891,7 @@ export default function DataPenelitianPage() {
                         domain={[0, 'auto']}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
+                        width={45}
                       />
                       <Tooltip
                         contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
