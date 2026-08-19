@@ -65,8 +65,6 @@ export default function RiwayatPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 15000);
-    return () => clearInterval(interval);
   }, [loadData]);
 
   // Fallback data if API returns empty

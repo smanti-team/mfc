@@ -90,8 +90,6 @@ export default function Home() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 15000);
-    return () => clearInterval(interval);
   }, [load]);
 
   // Fallback 4 commissioning records matching Pra-Siklus dataset
