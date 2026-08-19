@@ -380,22 +380,6 @@ const emptyCycleConfig = (name: string, defaultReadings: CycleReading[] = []): S
   readings: defaultReadings,
 });
 
-const cycleDataMap: Record<string, SingleCycleConfig> = {
-  "Siklus 1": emptyCycleConfig("Siklus 1", []),
-  "Siklus 2": emptyCycleConfig("Siklus 2", []),
-  "Siklus 3": emptyCycleConfig("Siklus 3", []),
-};
-
-const summaryMatrix = [
-  { param: "TDS Awal", icon: Droplet, s1: "—", s2: "—", s3: "—" },
-  { param: "TDS Akhir", icon: Droplet, s1: "—", s2: "—", s3: "—" },
-  { param: "Penurunan TDS", icon: TrendingDown, s1: "—", s2: "—", s3: "—" },
-  { param: "Tegangan Awal", icon: Activity, s1: "—", s2: "—", s3: "—" },
-  { param: "Tegangan Maksimum", icon: Activity, s1: "—", s2: "—", s3: "—" },
-  { param: "Tegangan Akhir", icon: Activity, s1: "—", s2: "—", s3: "—" },
-  { param: "R² Regresi", icon: ChartIcon, s1: "—", s2: "—", s3: "—" },
-];
-
 // Summary Reaktor Pendukung (Riwayat Uji Manual)
 const reaktorPendukungSummary = [
   { tanggal: "11 Agu", tegangan: "±0,18–0,20 V", catatan: "Awal commissioning" },
@@ -608,30 +592,117 @@ export default function DataPenelitianPage() {
     loadData();
   }, [loadData]);
 
-  // Fallback data for Pra-Siklus if API is empty/offline (10 data items for 2 pages)
-  const fallbackPraSiklus: Reading[] = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
+  // Permanent Hardcoded Pra-Siklus dataset (100% static from PDF, completely isolated from API)
+  const hardcodedPraSiklus: Reading[] = useMemo(() => {
     return [
-      { timestamp: now - 32400, tds: 1180.50, voltage: 0.18 },
-      { timestamp: now - 28800, tds: 1150.20, voltage: 0.19 },
-      { timestamp: now - 25200, tds: 1120.40, voltage: 0.21 },
-      { timestamp: now - 21600, tds: 1090.10, voltage: 0.22 },
-      { timestamp: now - 18000, tds: 1050.80, voltage: 0.23 },
-      { timestamp: now - 14400, tds: 1020.30, voltage: 0.24 },
-      { timestamp: now - 10800, tds: 980.60, voltage: 0.23 },
-      { timestamp: now - 7200, tds: 960.40, voltage: 0.22 },
-      { timestamp: now - 3600, tds: 956.84, voltage: 0.23 },
-      { timestamp: now - 300, tds: 1068.89, voltage: 0.20 },
+      { timestamp: "2026-08-18T21:50:59", tds: 1174.69, voltage: 0.47 },
+      { timestamp: "2026-08-18T20:51:29", tds: 1179.34, voltage: 0.46 },
+      { timestamp: "2026-08-18T19:52:01", tds: 1182.08, voltage: 0.45 },
+      { timestamp: "2026-08-18T18:52:28", tds: 1184.77, voltage: 0.45 },
+      { timestamp: "2026-08-18T17:52:58", tds: 1187.27, voltage: 0.44 },
+      { timestamp: "2026-08-18T16:54:43", tds: 1184.57, voltage: 0.43 },
+      { timestamp: "2026-08-18T15:37:43", tds: 1191.46, voltage: 0.42 },
+      { timestamp: "2026-08-18T14:38:08", tds: 1199.29, voltage: 0.41 },
+      { timestamp: "2026-08-18T13:38:32", tds: 1156.06, voltage: 0.39 },
+      { timestamp: "2026-08-18T12:39:19", tds: 1158.77, voltage: 0.38 },
     ];
   }, []);
 
-  // Process Pra-Siklus API / Telemetry Data
+  // Process Pra-Siklus Data: Uses ONLY static hardcoded data from PDF (zero connection to API)
   const praSiklusList = useMemo(() => {
-    const raw = (summary.history && summary.history.length > 0) ? summary.history : fallbackPraSiklus;
-    return [...raw].sort(
+    return [...hardcodedPraSiklus].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
-  }, [summary.history, fallbackPraSiklus]);
+  }, [hardcodedPraSiklus]);
+
+  // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1
+  const siklus1Readings: CycleReading[] = useMemo(() => {
+    if (!summary.history || summary.history.length === 0) {
+      return sampleSiklus1Readings;
+    }
+
+    const sorted = [...summary.history].sort(
+      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
+    );
+
+    const t0 = parseTimestamp(sorted[0].timestamp).getTime();
+
+    return sorted.map((d, index) => {
+      const tCurrent = parseTimestamp(d.timestamp).getTime();
+      const diffHours = Math.round((tCurrent - t0) / (1000 * 3600));
+      const hour = diffHours >= 0 ? diffHours : index * 3;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+
+      return {
+        hour,
+        actualTime: `${formatDate(d.timestamp)} ${formatTime(d.timestamp)}`,
+        tds: d.tds != null ? Number(d.tds.toFixed(2)) : 956.84,
+        voltage: Number(v.toFixed(3)),
+        status: "VALID" as const,
+      };
+    });
+  }, [summary.history]);
+
+  const cycleDataMap: Record<string, SingleCycleConfig> = useMemo(() => {
+    return {
+      "Siklus 1": {
+        id: "Siklus 1",
+        name: "Siklus 1",
+        readings: siklus1Readings,
+      },
+      "Siklus 2": {
+        id: "Siklus 2",
+        name: "Siklus 2",
+        readings: sampleSiklus2Readings,
+      },
+      "Siklus 3": {
+        id: "Siklus 3",
+        name: "Siklus 3",
+        readings: sampleSiklus3Readings,
+      },
+    };
+  }, [siklus1Readings]);
+
+  const summaryMatrix = useMemo(() => {
+    const s1 = cycleDataMap["Siklus 1"]?.readings || [];
+    const s2 = cycleDataMap["Siklus 2"]?.readings || [];
+    const s3 = cycleDataMap["Siklus 3"]?.readings || [];
+
+    const getMetrics = (readings: CycleReading[]) => {
+      if (readings.length === 0) {
+        return { awalTds: "—", akhirTds: "—", redTds: "—", awalVolt: "—", maxVolt: "—", akhirVolt: "—", r2: "—" };
+      }
+      const first = readings[0];
+      const last = readings[readings.length - 1];
+      const red = ((first.tds - last.tds) / first.tds) * 100;
+      const maxV = Math.max(...readings.map(r => r.voltage));
+      const reg = calculateTdsRegression(readings);
+
+      return {
+        awalTds: `${first.tds.toFixed(2).replace('.', ',')} mg/L`,
+        akhirTds: `${last.tds.toFixed(2).replace('.', ',')} mg/L`,
+        redTds: `${red.toFixed(2).replace('.', ',')}%`,
+        awalVolt: `${first.voltage.toFixed(3).replace('.', ',')} V`,
+        maxVolt: `${maxV.toFixed(3).replace('.', ',')} V`,
+        akhirVolt: `${last.voltage.toFixed(3).replace('.', ',')} V`,
+        r2: reg.rSquaredStr,
+      };
+    };
+
+    const m1 = getMetrics(s1);
+    const m2 = getMetrics(s2);
+    const m3 = getMetrics(s3);
+
+    return [
+      { param: "TDS Awal", icon: Droplet, s1: m1.awalTds, s2: m2.awalTds, s3: m3.awalTds },
+      { param: "TDS Akhir", icon: Droplet, s1: m1.akhirTds, s2: m2.akhirTds, s3: m3.akhirTds },
+      { param: "Penurunan TDS", icon: TrendingDown, s1: m1.redTds, s2: m2.redTds, s3: m3.redTds },
+      { param: "Tegangan Awal", icon: Activity, s1: m1.awalVolt, s2: m2.awalVolt, s3: m3.awalVolt },
+      { param: "Tegangan Maksimum", icon: Activity, s1: m1.maxVolt, s2: m2.maxVolt, s3: m3.maxVolt },
+      { param: "Tegangan Akhir", icon: Activity, s1: m1.akhirVolt, s2: m2.akhirVolt, s3: m3.akhirVolt },
+      { param: "R² Regresi", icon: ChartIcon, s1: m1.r2, s2: m2.r2, s3: m3.r2 },
+    ];
+  }, [cycleDataMap]);
 
   // Metric calculation for Pra-Siklus
   const praSiklusMetrics = useMemo(() => {
