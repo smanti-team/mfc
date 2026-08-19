@@ -396,8 +396,8 @@ const summaryMatrix = [
   { param: "R² Regresi", icon: ChartIcon, s1: "—", s2: "—", s3: "—" },
 ];
 
-// Summary Reaktor A (Pra-Siklus)
-const reaktorASummary = [
+// Summary Reaktor Pendukung (Riwayat Uji Manual)
+const reaktorPendukungSummary = [
   { tanggal: "11 Agu", tegangan: "±0,18–0,20 V", catatan: "Awal commissioning" },
   { tanggal: "12 Agu", tegangan: "±0,41–0,50 V", catatan: "Tegangan berkembang" },
   { tanggal: "13 Agu", tegangan: "±0,55–0,60 V", catatan: "Relatif stabil" },
@@ -405,6 +405,7 @@ const reaktorASummary = [
   { tanggal: "15 Agu", tegangan: "0 V → ±0,52–0,59 V", catatan: "Katoda sempat kehilangan kontak akibat level cairan turun" },
   { tanggal: "16 Agu", tegangan: "—", catatan: "Perbaikan/observasi mekanik" },
   { tanggal: "17 Agu", tegangan: "±0,49 V → ±0,33 V → 0,348 V → 0,373 V", catatan: "Jatuh/tumpah kemudian recovery" },
+  { tanggal: "18 Agu", tegangan: "0,540 V", catatan: "Tegangan kembali meningkat setelah recovery pascajatuh" },
 ];
 
 function parseTimestamp(ts: string | number): Date {
@@ -579,10 +580,14 @@ export default function DataPenelitianPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isApiConnected, setIsApiConnected] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [praSiklusPage, setPraSiklusPage] = useState<number>(1);
+  const [pendukungPage, setPendukungPage] = useState<number>(1);
 
   // Reset pagination when changing tabs
   useEffect(() => {
     setCurrentPage(1);
+    setPraSiklusPage(1);
+    setPendukungPage(1);
   }, [activeTab]);
 
   const loadData = useCallback(async () => {
@@ -605,13 +610,19 @@ export default function DataPenelitianPage() {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  // Fallback data for Pra-Siklus if API is empty/offline
+  // Fallback data for Pra-Siklus if API is empty/offline (10 data items for 2 pages)
   const fallbackPraSiklus: Reading[] = useMemo(() => {
     const now = Math.floor(Date.now() / 1000);
     return [
+      { timestamp: now - 32400, tds: 1180.50, voltage: 0.18 },
+      { timestamp: now - 28800, tds: 1150.20, voltage: 0.19 },
+      { timestamp: now - 25200, tds: 1120.40, voltage: 0.21 },
+      { timestamp: now - 21600, tds: 1090.10, voltage: 0.22 },
+      { timestamp: now - 18000, tds: 1050.80, voltage: 0.23 },
+      { timestamp: now - 14400, tds: 1020.30, voltage: 0.24 },
+      { timestamp: now - 10800, tds: 980.60, voltage: 0.23 },
+      { timestamp: now - 7200, tds: 960.40, voltage: 0.22 },
       { timestamp: now - 3600, tds: 956.84, voltage: 0.23 },
-      { timestamp: now - 2700, tds: 1061.76, voltage: 0.24 },
-      { timestamp: now - 1800, tds: 956.79, voltage: 0.23 },
       { timestamp: now - 300, tds: 1068.89, voltage: 0.20 },
     ];
   }, []);
@@ -669,16 +680,22 @@ export default function DataPenelitianPage() {
     });
   }, [praSiklusList]);
 
-  // Pra-Siklus Table (Latest 6 records, sorted descending)
-  const praSiklusTableRows = useMemo(() => {
+  // Pra-Siklus Table All Rows (sorted descending for pagination)
+  const praSiklusAllRows = useMemo(() => {
     const sortedDesc = [...praSiklusList].reverse();
-    return sortedDesc.slice(0, 6).map((d, i) => {
+    return sortedDesc.map((d, i) => {
       const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
-      let catatan = "Uji pembacaan";
+      let catatan = "Uji pembacaan telemetri";
       if (i === 0) catatan = "Data terakhir sebelum ditinggalkan";
       else if (i === 1) catatan = "Uji pembacaan";
       else if (i === 2) catatan = "Pembacaan TDS berubah cepat";
       else if (i === 3) catatan = "Uji awal ESP32/web";
+      else if (i === 4) catatan = "Persiapan kalibrasi sensor";
+      else if (i === 5) catatan = "Observasi penurunan TDS";
+      else if (i === 6) catatan = "Penyesuaian elektroda";
+      else if (i === 7) catatan = "Pemeriksaan larutan elektrolit";
+      else if (i === 8) catatan = "Tegangan awal berkembang";
+      else if (i === 9) catatan = "Baseline awal telemetri";
 
       return {
         tanggal: formatDate(d.timestamp),
@@ -691,14 +708,14 @@ export default function DataPenelitianPage() {
   }, [praSiklusList]);
 
   const handleDownloadPraSiklusCSV = () => {
-    let csv = "Tanggal,Jam,TDS (mg/L),Tegangan (V),Catatan\n";
+    let csv = "\uFEFFTanggal;Jam;TDS (mg/L);Tegangan (V);Catatan\n";
     [...praSiklusList].reverse().forEach((d) => {
       const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
       const tgl = formatDate(d.timestamp);
       const jam = formatFullTime(d.timestamp);
-      const tds = (d.tds ?? 0).toFixed(2);
-      const volt = v.toFixed(3);
-      csv += `"${tgl}","${jam}",${tds},${volt},"Uji/commissioning Reaktor Utama"\n`;
+      const tds = (d.tds ?? 0).toFixed(2).replace('.', ',');
+      const volt = v.toFixed(3).replace('.', ',');
+      csv += `"${tgl}";"${jam}";"${tds}";"${volt}";"Uji/commissioning Reaktor Utama"\n`;
     });
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -706,6 +723,22 @@ export default function DataPenelitianPage() {
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", `pra-siklus-reaktor-utama-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadPendukungCSV = () => {
+    let csv = "\uFEFFTanggal;Tegangan Reaktor Pendukung;Catatan Pengamatan\n";
+    reaktorPendukungSummary.forEach((d) => {
+      csv += `"${d.tanggal}";"${d.tegangan}";"${d.catatan}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `riwayat-reaktor-pendukung-${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -857,6 +890,12 @@ export default function DataPenelitianPage() {
   const displayTableRows = useMemo(() => {
     return cycleReadings.length > 0 ? visibleCycleReadings : placeholderTableRows;
   }, [cycleReadings, visibleCycleReadings, placeholderTableRows]);
+
+  const praSiklusTotalPages = Math.max(1, Math.ceil(praSiklusAllRows.length / 6));
+  const visiblePraSiklusRows = praSiklusAllRows.slice((praSiklusPage - 1) * 6, praSiklusPage * 6);
+
+  const pendukungTotalPages = Math.max(1, Math.ceil(reaktorPendukungSummary.length / 6));
+  const visiblePendukungRows = reaktorPendukungSummary.slice((pendukungPage - 1) * 6, pendukungPage * 6);
 
   // Dynamic Y-Axis Domains with strict User Bounds: TDS min = 600, Voltage min = 0.0
   const praSiklusTdsDomain = useMemo(() => {
@@ -1769,187 +1808,260 @@ export default function DataPenelitianPage() {
             </MagneticCard>
           </div>
 
-          {/* Section 1: Reaktor A (Historical Commissioning Summary) */}
-          <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-            <div className="mb-4">
-              <h3 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
-                <FlaskConical className="text-sky-600" size={18} />
-                Reaktor A — UJI / COMMISSIONING
-              </h3>
-              <p className="text-slate-600 text-xs mt-1 font-medium">
-                Catatan ringkas perkembangan tegangan awal Reaktor A sebelum commissioning Reaktor Utama.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
-                  <tr>
-                    <th className="py-2.5 px-3 font-semibold">Tanggal</th>
-                    <th className="py-2.5 px-3 font-semibold">Tegangan Reaktor A</th>
-                    <th className="py-2.5 px-3 font-semibold">Catatan Pengamatan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                  {reaktorASummary.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-900">{row.tanggal}</td>
-                      <td className="py-2.5 px-3 text-sky-700 font-semibold font-mono">{row.tegangan}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{row.catatan}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* Section 2: Reaktor Utama (Live API Charts & Table) */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-slate-900 text-lg flex items-center gap-2">
-                <Cpu className="text-sky-600" size={20} />
-                Reaktor Utama — UJI / COMMISSIONING (Live API)
-              </h3>
-              <span className="text-xs text-slate-500 font-medium">
-                Pembaruan otomatis via ESP32 Cloud Gateway
-              </span>
-            </div>
-
-            {/* Charts Side-by-Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* TDS Chart */}
-              <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-                <div className="mb-2">
-                  <h3 className="font-display font-bold text-slate-900 text-base">
-                    Grafik TDS Pra-Siklus (Reaktor Utama)
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">TDS (mg/L)</p>
-                </div>
-                <div className="h-[280px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                      <XAxis
-                        dataKey="waktu"
-                        stroke="#64748B"
-                        fontSize={10}
-                        tickLine={false}
-                        axisLine={{ stroke: "#CBD5E1" }}
-                        padding={{ left: 35, right: 25 }}
-                        tickMargin={10}
-                      />
-                      <YAxis
-                        stroke="#64748B"
-                        fontSize={11}
-                        domain={praSiklusTdsDomain}
-                        tickLine={false}
-                        axisLine={{ stroke: "#CBD5E1" }}
-                        width={45}
-                      />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="tds"
-                        name="TDS (mg/L)"
-                        stroke="#0284C7"
-                        strokeWidth={2.5}
-                        dot={<RenderCustomTdsDot />}
-                        activeDot={{ r: 6, fill: "#0284C7" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              {/* Voltage Chart */}
-              <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-                <div className="mb-2">
-                  <h3 className="font-display font-bold text-slate-900 text-base">
-                    Grafik Tegangan Pra-Siklus (Reaktor Utama)
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
-                </div>
-                <div className="h-[280px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                      <XAxis
-                        dataKey="waktu"
-                        stroke="#64748B"
-                        fontSize={10}
-                        tickLine={false}
-                        axisLine={{ stroke: "#CBD5E1" }}
-                        padding={{ left: 35, right: 25 }}
-                        tickMargin={10}
-                      />
-                      <YAxis
-                        stroke="#64748B"
-                        fontSize={11}
-                        domain={praSiklusVoltDomain}
-                        tickLine={false}
-                        axisLine={{ stroke: "#CBD5E1" }}
-                        width={45}
-                      />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="voltage"
-                        name="Tegangan (V)"
-                        stroke="#16A34A"
-                        strokeWidth={2.5}
-                        dot={<RenderCustomVoltDot />}
-                        activeDot={{ r: 6, fill: "#16A34A" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-
-            {/* Live Table (5 Columns) */}
-            <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
-                  Data Telemetri Reaktor Utama (Live API)
+          {/* Pra-Siklus Grid Layout: Left (Data Uji Reaktor Utama) & Right (Riwayat Uji Manual Reaktor Pendukung) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Panel: Data Uji/Commissioning Reaktor Utama */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+                  <Cpu className="text-sky-600" size={20} />
+                  Data Uji/Commissioning Reaktor Utama
                 </h3>
-                <button
-                  onClick={handleDownloadPraSiklusCSV}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
-                >
-                  <Download size={14} />
-                  Download CSV
-                </button>
+                <span className="text-xs text-slate-500 font-medium">
+                  Live API ESP32
+                </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3 font-semibold">Tanggal</th>
-                      <th className="py-2.5 px-3 font-semibold">Jam</th>
-                      <th className="py-2.5 px-3 font-semibold">TDS (mg/L)</th>
-                      <th className="py-2.5 px-3 font-semibold">Tegangan (V)</th>
-                      <th className="py-2.5 px-3 font-semibold">Catatan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                    {praSiklusTableRows.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-slate-900">{row.tanggal}</td>
-                        <td className="py-2.5 px-3 text-slate-600 font-mono">{row.jam}</td>
-                        <td className="py-2.5 px-3 text-sky-600 font-bold">{row.tdsStr}</td>
-                        <td className="py-2.5 px-3 text-emerald-600 font-bold">{row.voltageStr}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{row.catatan}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Charts Stacked */}
+              <div className="space-y-6">
+                {/* TDS Chart */}
+                <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+                  <div className="mb-2">
+                    <h3 className="font-display font-bold text-slate-900 text-base">
+                      Grafik TDS Pra-Siklus (Reaktor Utama)
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">TDS (mg/L)</p>
+                  </div>
+                  <div className="h-[260px] w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                        <XAxis
+                          dataKey="waktu"
+                          stroke="#64748B"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={{ stroke: "#CBD5E1" }}
+                          padding={{ left: 35, right: 25 }}
+                          tickMargin={10}
+                        />
+                        <YAxis
+                          stroke="#64748B"
+                          fontSize={11}
+                          domain={praSiklusTdsDomain}
+                          tickLine={false}
+                          axisLine={{ stroke: "#CBD5E1" }}
+                          width={45}
+                        />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="tds"
+                          name="TDS (mg/L)"
+                          stroke="#0284C7"
+                          strokeWidth={2.5}
+                          dot={<RenderCustomTdsDot />}
+                          activeDot={{ r: 6, fill: "#0284C7" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                {/* Voltage Chart */}
+                <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+                  <div className="mb-2">
+                    <h3 className="font-display font-bold text-slate-900 text-base">
+                      Grafik Tegangan Pra-Siklus (Reaktor Utama)
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
+                  </div>
+                  <div className="h-[260px] w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                        <XAxis
+                          dataKey="waktu"
+                          stroke="#64748B"
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={{ stroke: "#CBD5E1" }}
+                          padding={{ left: 35, right: 25 }}
+                          tickMargin={10}
+                        />
+                        <YAxis
+                          stroke="#64748B"
+                          fontSize={11}
+                          domain={praSiklusVoltDomain}
+                          tickLine={false}
+                          axisLine={{ stroke: "#CBD5E1" }}
+                          width={45}
+                        />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="voltage"
+                          name="Tegangan (V)"
+                          stroke="#16A34A"
+                          strokeWidth={2.5}
+                          dot={<RenderCustomVoltDot />}
+                          activeDot={{ r: 6, fill: "#16A34A" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
               </div>
-            </Card>
+
+              {/* Live Table (5 Columns) with 6-row Pagination */}
+              <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
+                      Data Telemetri Reaktor Utama (Live API)
+                    </h3>
+                    <button
+                      onClick={handleDownloadPraSiklusCSV}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
+                    >
+                      <Download size={14} />
+                      Download CSV
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                        <tr>
+                          <th className="py-2.5 px-3 font-semibold">Tanggal</th>
+                          <th className="py-2.5 px-3 font-semibold">Jam</th>
+                          <th className="py-2.5 px-3 font-semibold">TDS (mg/L)</th>
+                          <th className="py-2.5 px-3 font-semibold">Tegangan (V)</th>
+                          <th className="py-2.5 px-3 font-semibold">Catatan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                        {visiblePraSiklusRows.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{row.tanggal}</td>
+                            <td className="py-2.5 px-3 text-slate-600 font-mono">{row.jam}</td>
+                            <td className="py-2.5 px-3 text-sky-600 font-bold">{row.tdsStr}</td>
+                            <td className="py-2.5 px-3 text-emerald-600 font-bold">{row.voltageStr}</td>
+                            <td className="py-2.5 px-3 text-slate-600">{row.catatan}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Table Footer: Pagination */}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Menampilkan {praSiklusAllRows.length > 0 ? (praSiklusPage - 1) * 6 + 1 : 0}–{Math.min(praSiklusPage * 6, praSiklusAllRows.length)} dari {praSiklusAllRows.length} data Reaktor Utama
+                  </span>
+                  <div className="flex items-center gap-2 font-semibold">
+                    <button
+                      onClick={() => setPraSiklusPage(prev => Math.max(1, prev - 1))}
+                      disabled={praSiklusPage === 1}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                    >
+                      ← Sebelumnya
+                    </button>
+                    <span className="text-slate-700 font-mono">
+                      Halaman <strong className="text-slate-900">{praSiklusPage}</strong> dari <strong>{praSiklusTotalPages}</strong>
+                    </span>
+                    <button
+                      onClick={() => setPraSiklusPage(prev => Math.min(praSiklusTotalPages, prev + 1))}
+                      disabled={praSiklusPage === praSiklusTotalPages}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                    >
+                      Selanjutnya →
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Right Panel: Riwayat Uji Manual Reaktor Pendukung */}
+            <div className="lg:col-span-5 space-y-6">
+              <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
+                        <FlaskConical className="text-sky-600" size={18} />
+                        Riwayat Uji Manual Reaktor Pendukung
+                      </h3>
+                      <p className="text-slate-600 text-xs mt-1 font-medium">
+                        Catatan ringkas perkembangan tegangan Reaktor Pendukung sebelum commissioning Reaktor Utama.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end mb-3">
+                    <button
+                      onClick={handleDownloadPendukungCSV}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
+                    >
+                      <Download size={14} />
+                      Download CSV
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                        <tr>
+                          <th className="py-2.5 px-3 font-semibold">Tanggal</th>
+                          <th className="py-2.5 px-3 font-semibold">Tegangan Reaktor Pendukung</th>
+                          <th className="py-2.5 px-3 font-semibold">Catatan Pengamatan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                        {visiblePendukungRows.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{row.tanggal}</td>
+                            <td className="py-2.5 px-3 text-sky-700 font-semibold font-mono">{row.tegangan}</td>
+                            <td className="py-2.5 px-3 text-slate-600">{row.catatan}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Table Footer: Pagination */}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Menampilkan {(pendukungPage - 1) * 6 + 1}–{Math.min(pendukungPage * 6, reaktorPendukungSummary.length)} dari {reaktorPendukungSummary.length} data
+                  </span>
+                  <div className="flex items-center gap-2 font-semibold">
+                    <button
+                      onClick={() => setPendukungPage(prev => Math.max(1, prev - 1))}
+                      disabled={pendukungPage === 1}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                    >
+                      ← Sebelumnya
+                    </button>
+                    <span className="text-slate-700 font-mono">
+                      Halaman <strong className="text-slate-900">{pendukungPage}</strong> dari <strong>{pendukungTotalPages}</strong>
+                    </span>
+                    <button
+                      onClick={() => setPendukungPage(prev => Math.min(pendukungTotalPages, prev + 1))}
+                      disabled={pendukungPage === pendukungTotalPages}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                    >
+                      Selanjutnya →
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
       )}
