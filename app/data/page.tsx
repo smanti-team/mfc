@@ -356,23 +356,8 @@ const sampleSiklus1Readings: CycleReading[] = [
   { hour: 15, actualTime: "17 Agu 23.15", tds: 1050, voltage: 0.611, status: "VALID" },
 ];
 
-const sampleSiklus2Readings: CycleReading[] = [
-  { hour: 0, actualTime: "24 Agu 08.00", tds: 1380, voltage: 0.602, status: "VALID" },
-  { hour: 3, actualTime: "24 Agu 11.00", tds: 1260, voltage: 0.608, status: "VALID" },
-  { hour: 6, actualTime: "24 Agu 14.00", tds: 1150, voltage: 0.615, status: "VALID" },
-  { hour: 9, actualTime: "24 Agu 17.00", tds: 1080, voltage: 0.620, status: "VALID" },
-  { hour: 12, actualTime: "24 Agu 20.00", tds: 980, voltage: 0.624, status: "VALID" },
-  { hour: 15, actualTime: "24 Agu 23.00", tds: 920, voltage: 0.628, status: "VALID" },
-];
-
-const sampleSiklus3Readings: CycleReading[] = [
-  { hour: 0, actualTime: "31 Agu 08.30", tds: 1420, voltage: 0.588, status: "VALID" },
-  { hour: 3, actualTime: "31 Agu 11.30", tds: 1350, voltage: 0.592, status: "VALID" },
-  { hour: 6, actualTime: "31 Agu 14.30", tds: 1290, voltage: 0.595, status: "VALID" },
-  { hour: 9, actualTime: "31 Agu 17.30", tds: 1200, voltage: 0.599, status: "VALID" },
-  { hour: 12, actualTime: "31 Agu 20.30", tds: 1120, voltage: 0.603, status: "VALID" },
-  { hour: 15, actualTime: "31 Agu 23.30", tds: 1015, voltage: 0.607, status: "VALID" },
-];
+const sampleSiklus2Readings: CycleReading[] = [];
+const sampleSiklus3Readings: CycleReading[] = [];
 
 const emptyCycleConfig = (name: string, defaultReadings: CycleReading[] = []): SingleCycleConfig => ({
   id: name,
