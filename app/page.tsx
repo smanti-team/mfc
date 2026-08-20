@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { fetchSummary } from "@/lib/api";
 import type { Summary, Reading } from "@/lib/types";
+import { calculateTdsRegression, convertHistoryToCycleReadings } from "@/lib/regression";
 import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
@@ -123,51 +124,21 @@ export default function Home() {
 
   const lastUpdateTimeStr = latestReading ? formatFullDateTime(latestReading.timestamp) : "Belum ada data";
 
-  const activeBatchName = "Batch UJI";
+  const activeBatchName = "Batch 001 — S1";
   const processingStatus = "BERJALAN";
 
-  // Linear Regression Slope Analysis (Last 8 points)
-  const slopeAnalysis = useMemo(() => {
-    if (sortedHistory.length === 0) {
-      return { slope: -15, timeStepMs: 10800000, count: 0 };
-    }
-
-    const lastPoints = sortedHistory.slice(-8);
-    const N = lastPoints.length;
-
-    if (N < 2) {
-      return { slope: -15, timeStepMs: 10800000, count: N };
-    }
-
-    let sumX = 0;
-    let sumY = 0;
-    let sumXY = 0;
-    let sumX2 = 0;
-
-    for (let i = 0; i < N; i++) {
-      const x = i;
-      const y = lastPoints[i].tds ?? 0;
-      sumX += x;
-      sumY += y;
-      sumXY += x * y;
-      sumX2 += x * x;
-    }
-
-    const denom = N * sumX2 - sumX * sumX;
-    const slope = denom !== 0 ? (N * sumXY - sumX * sumY) / denom : -15;
-
-    const firstTime = parseTimestamp(lastPoints[0].timestamp).getTime();
-    const lastTime = parseTimestamp(lastPoints[N - 1].timestamp).getTime();
-    const totalDiffMs = lastTime - firstTime;
-    const timeStepMs = totalDiffMs > 0 ? totalDiffMs / (N - 1) : 10800000;
-
-    return { slope, timeStepMs, count: N };
+  // Convert telemetry history to CycleReading format for regression analysis
+  const s1CycleReadings = useMemo(() => {
+    return convertHistoryToCycleReadings(sortedHistory);
   }, [sortedHistory]);
 
-  // TDS Chart Data with 8 Gray Prediction Nodes & Voltage Chart Data (ONLY ACTUAL VOLTAGE DATA, NO PREDICTION NODES)
-  const { tdsChartData, voltageChartData, remainingTimeString, isTargetReached } = useMemo(() => {
-    const targetThreshold = 1000;
+  // Linear Regression Slope & Remaining Time Prediction (Sync with Siklus page)
+  const regressionResult = useMemo(() => {
+    return calculateTdsRegression(s1CycleReadings);
+  }, [s1CycleReadings]);
 
+  // TDS Chart Data with 8 Gray Prediction Nodes (ONLY if >= 3 valid S1 points) & Voltage Chart Data
+  const { tdsChartData, voltageChartData, remainingTimeString } = useMemo(() => {
     // 1. Real TDS & Voltage points
     const realTdsPoints = sortedHistory.map((d) => ({
       time: formatTime(d.timestamp),
@@ -186,60 +157,36 @@ export default function Home() {
       };
     });
 
-    const lastReal = sortedHistory[sortedHistory.length - 1];
-    const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
-    const lastRealTds = lastReal.tds ?? 1068.89;
-
-    const { slope, timeStepMs } = slopeAnalysis;
-
-    // 2. Generate 8 Gray Prediction Nodes FOR TDS CHART ONLY
+    // 2. Generate 8 Gray Prediction Nodes ONLY IF S1 REGRESSION IS VALID (>= 3 points)
     const predTdsPoints = [];
-    const activeSlope = slope < 0 ? slope : -12.5;
+    if (regressionResult.isValid && sortedHistory.length > 0) {
+      const lastReal = sortedHistory[sortedHistory.length - 1];
+      const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
+      const lastRealTds = lastReal.tds ?? 1068.89;
+      const timeStepMs = 3 * 3600 * 1000;
+      const slopePerStep = regressionResult.slopePerStep;
 
-    for (let k = 1; k <= 8; k++) {
-      const predTimeMs = lastRealTimeMs + k * timeStepMs;
-      const predTds = Math.max(0, Math.round(lastRealTds + k * activeSlope));
+      for (let k = 1; k <= 8; k++) {
+        const predTimeMs = lastRealTimeMs + k * timeStepMs;
+        const predTds = Math.max(0, Math.round(lastRealTds + k * slopePerStep));
 
-      predTdsPoints.push({
-        time: formatTime(predTimeMs),
-        fullTime: `${formatFullDateTime(predTimeMs)} (Prediksi #${k})`,
-        tds: predTds,
-        isPrediction: true,
-      });
+        predTdsPoints.push({
+          time: formatTime(predTimeMs),
+          fullTime: `${formatFullDateTime(predTimeMs)} (Prediksi #${k})`,
+          tds: predTds,
+          isPrediction: true,
+        });
+      }
     }
 
     const combinedTdsData = [...realTdsPoints, ...predTdsPoints];
 
-    let timeStr = "";
-    let targetReached = false;
-
-    if (lastRealTds <= targetThreshold) {
-      timeStr = "Target tercapai";
-      targetReached = true;
-    } else if (slope >= 0 && activeSlope >= 0) {
-      timeStr = "Belum dapat diprediksi";
-    } else {
-      const stepsToTarget = (lastRealTds - targetThreshold) / -activeSlope;
-      const msToTarget = stepsToTarget * timeStepMs;
-      const hoursToTarget = msToTarget / (1000 * 3600);
-      const minsToTarget = Math.round(msToTarget / (1000 * 60));
-
-      if (minsToTarget < 60) {
-        timeStr = `± ${minsToTarget} mnt`;
-      } else {
-        const hrs = Math.floor(hoursToTarget);
-        const remainingMins = Math.round((hoursToTarget - hrs) * 60);
-        timeStr = remainingMins > 0 ? `± ${hrs} jam ${remainingMins} mnt` : `± ${hrs} jam`;
-      }
-    }
-
     return {
       tdsChartData: combinedTdsData,
-      voltageChartData: realVoltPoints, // ONLY actual voltage telemetry data (NO prediction nodes)
-      remainingTimeString: timeStr,
-      isTargetReached: targetReached,
+      voltageChartData: realVoltPoints,
+      remainingTimeString: regressionResult.remainingStr,
     };
-  }, [sortedHistory, slopeAnalysis]);
+  }, [sortedHistory, regressionResult]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
@@ -366,7 +313,7 @@ export default function Home() {
           <TrendingDown className="text-sky-600" size={18} />
           <div>
             <p className="text-slate-900 font-medium">Slope (Regresi Linier)</p>
-            <p className="text-sky-700 text-xs font-mono font-bold">{slopeAnalysis.slope.toFixed(2)} mg/L per step</p>
+            <p className="text-sky-700 text-xs font-mono font-bold">{regressionResult.slopePerStepStr}</p>
           </div>
         </div>
         <div className="w-px h-8 bg-sky-900/10 hidden lg:block"></div>
@@ -382,7 +329,7 @@ export default function Home() {
           <BatteryCharging className="text-sky-600" size={18} />
           <div>
             <p className="text-slate-900 font-medium">Micro-Energy</p>
-            <p className="text-slate-500 text-xs font-medium">Uji Berlangsung</p>
+            <p className="text-slate-500 text-xs font-medium">Belum Diuji</p>
           </div>
         </div>
       </div>
@@ -406,7 +353,7 @@ export default function Home() {
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mb-2 font-medium">
-            TDS (mg/L) — Slope 8 data terakhir: <span className="font-mono text-sky-700 font-bold">{slopeAnalysis.slope.toFixed(2)} mg/L per step</span>
+            TDS (mg/L) — Slope Regresi S1: <span className="font-mono text-sky-700 font-bold">{regressionResult.slopePerStepStr}</span>
           </p>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -614,7 +561,7 @@ export default function Home() {
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Slope Regresi Linier</p>
               <h4 className="text-lg font-mono font-bold text-sky-600">
-                {slopeAnalysis.slope.toFixed(2)} mg/L per step
+                {regressionResult.slopePerStepStr}
               </h4>
             </div>
             

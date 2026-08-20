@@ -67,22 +67,7 @@ export default function RiwayatPage() {
     loadData();
   }, [loadData]);
 
-  // 1. Permanent Hardcoded Batch UJI (Pra-Siklus Commissioning Batch)
-  const ujiBatch: BatchRecord = useMemo(() => {
-    return {
-      id: "Batch UJI",
-      start: "18 Agu 2026, 12.39",
-      end: "18 Agu 2026, 21.50",
-      tdsStart: 1159,
-      tdsEnd: 1175,
-      duration: "9 jam 11 mnt",
-      status: "SELESAI",
-      notes: "Uji/commissioning Reaktor Utama (Pra-Siklus Hardcode)",
-      isUji: true,
-    };
-  }, []);
-
-  // 2. Transform Siklus 1 live API telemetry into Batch 001 (Newer batch)
+  // Transform Siklus 1 live API telemetry into Batch 001 — S1 (Newer batch)
   const { batchList, chartData, stats } = useMemo(() => {
     const hasLiveApi = summary.history && summary.history.length > 0;
 
@@ -110,7 +95,7 @@ export default function RiwayatPage() {
       const isComplete = tdsEnd > 0 && tdsEnd <= 1000;
 
       batch001 = {
-        id: "Batch 001",
+        id: "Batch 001 — S1",
         start: formatFullDateTime(firstRecord.timestamp),
         end: isComplete ? formatFullDateTime(lastRecord.timestamp) : "—",
         tdsStart,
@@ -122,7 +107,7 @@ export default function RiwayatPage() {
       };
     } else {
       batch001 = {
-        id: "Batch 001",
+        id: "Batch 001 — S1",
         start: "—",
         end: "—",
         tdsStart: 0,
@@ -134,13 +119,13 @@ export default function RiwayatPage() {
       };
     }
 
-    // NEWEST BATCH (Batch 001) MUST BE AT THE TOP ABOVE OLDER BATCH (Batch UJI)!
-    const displayBatches: BatchRecord[] = [batch001, ujiBatch];
+    // Display ONLY official cycle batches (Siklus 1, Siklus 2, Siklus 3). Batch UJI removed per request.
+    const displayBatches: BatchRecord[] = [batch001];
 
-    // Chart data for TDS change (%)
+    // Chart data for TDS change (%) - ONLY official cycles (Siklus 1-3)
     const chart = displayBatches.map((b) => {
       const diff = b.tdsStart - b.tdsEnd;
-      const pct = b.tdsStart > 0 ? Math.round((diff / b.tdsStart) * 100) : 0;
+      const pct = (b.tdsStart > 0 && diff > 0) ? Number(((diff / b.tdsStart) * 100).toFixed(2)) : 0;
       return {
         name: b.id,
         penurunan: pct,
@@ -150,19 +135,20 @@ export default function RiwayatPage() {
     const totalCount = displayBatches.length;
     const completedCount = displayBatches.filter((b) => b.status === "SELESAI").length;
     const runningCount = displayBatches.filter((b) => b.status === "BERJALAN").length;
+    const completedPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
     return {
       batchList: displayBatches,
       chartData: chart,
       stats: {
-        total: 1,
-        completed: 0,
-        running: 1,
+        total: totalCount,
+        completed: completedCount,
+        running: runningCount,
         avgDuration: "—",
-        completedPercent: 0,
+        completedPercent: completedPct,
       },
     };
-  }, [summary.history, ujiBatch]);
+  }, [summary.history]);
 
   const [selectedBatch, setSelectedBatch] = useState<BatchRecord>(batchList[0]);
 
@@ -172,23 +158,27 @@ export default function RiwayatPage() {
     }
   }, [batchList]);
 
-  // Compute TDS change label & formatted value
+  // Compute TDS change label & formatted value with max 2 decimals (e.g. 2,28 mg/L (0,19%))
   const tdsChangeAnalysis = useMemo(() => {
-    if (!selectedBatch) return { label: "Perubahan TDS", text: "0 mg/L (0%)", isDecrease: true };
+    if (!selectedBatch || selectedBatch.tdsStart === 0) {
+      return { label: "Perubahan TDS", text: "0,00 mg/L (0,00%)", isDecrease: true };
+    }
     const diff = selectedBatch.tdsStart - selectedBatch.tdsEnd;
     const absDiff = Math.abs(diff);
-    const pct = selectedBatch.tdsStart > 0 ? Math.abs(Math.round((diff / selectedBatch.tdsStart) * 100)) : 0;
+    const absDiffFormatted = absDiff.toFixed(2).replace('.', ',');
+    const pct = (absDiff / selectedBatch.tdsStart) * 100;
+    const pctFormatted = pct.toFixed(2).replace('.', ',');
 
     if (diff >= 0) {
       return {
         label: "Penurunan TDS",
-        text: `${absDiff} mg/L (${pct}%)`,
+        text: `${absDiffFormatted} mg/L (${pctFormatted}%)`,
         isDecrease: true
       };
     } else {
       return {
         label: "Kenaikan TDS",
-        text: `${absDiff} mg/L (${pct}%)`,
+        text: `${absDiffFormatted} mg/L (${pctFormatted}%)`,
         isDecrease: false
       };
     }
@@ -245,7 +235,7 @@ export default function RiwayatPage() {
               </span>
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">
-              0% DARI TOTAL BATCH
+              {stats.completedPercent}% DARI TOTAL BATCH
             </p>
           </div>
         </MagneticCard>
@@ -261,7 +251,9 @@ export default function RiwayatPage() {
                 {isLoading ? "..." : stats.running}
               </span>
             </div>
-            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">BATCH 001 — SIKLUS 1 SEDANG AKTIF</p>
+            <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">
+              {selectedBatch?.id ? `${selectedBatch.id.toUpperCase()} SEDANG AKTIF` : "BATCH 001 — S1 SEDANG AKTIF"}
+            </p>
           </div>
         </MagneticCard>
 
@@ -318,8 +310,8 @@ export default function RiwayatPage() {
                     </td>
                     <td className="py-4 px-2 text-fog">{row.start}</td>
                     <td className="py-4 px-2 text-fog">{row.status === "BERJALAN" ? "—" : row.end}</td>
-                    <td className="py-4 px-2 text-fog">{row.tdsStart}</td>
-                    <td className="py-4 px-2 text-fog">{row.tdsEnd}</td>
+                    <td className="py-4 px-2 text-fog font-mono">{typeof row.tdsStart === 'number' ? row.tdsStart.toFixed(2).replace('.', ',') : row.tdsStart}</td>
+                    <td className="py-4 px-2 text-fog font-mono">{typeof row.tdsEnd === 'number' ? row.tdsEnd.toFixed(2).replace('.', ',') : row.tdsEnd}</td>
                     <td className="py-4 px-2 text-fog">{row.duration}</td>
                     <td className="py-4 px-2">
                       <Badge variant={row.status === "SELESAI" ? "outline-green" : "warning"}>
@@ -353,7 +345,7 @@ export default function RiwayatPage() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-muted">ID Batch</p>
-                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "Batch UJI"}</p>
+                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "Batch 001 — S1"}</p>
               </div>
             </div>
 
@@ -374,13 +366,13 @@ export default function RiwayatPage() {
                 <div className="flex items-center gap-2 text-muted">
                   <Activity size={14} /> TDS Awal
                 </div>
-                <div className="text-fog font-medium">{selectedBatch?.tdsStart ?? 0} mg/L</div>
+                <div className="text-fog font-medium font-mono">{selectedBatch?.tdsStart != null ? selectedBatch.tdsStart.toFixed(2).replace('.', ',') : "0,00"} mg/L</div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-muted">
                   <Activity size={14} /> TDS Akhir
                 </div>
-                <div className="text-fog font-medium">{selectedBatch?.tdsEnd ?? 0} mg/L</div>
+                <div className="text-fog font-medium font-mono">{selectedBatch?.tdsEnd != null ? selectedBatch.tdsEnd.toFixed(2).replace('.', ',') : "0,00"} mg/L</div>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-4">
                 <div className="flex items-center gap-2 text-signal">
@@ -389,7 +381,7 @@ export default function RiwayatPage() {
                     {tdsChangeAnalysis.label}
                   </span>
                 </div>
-                <div className={`font-medium ${tdsChangeAnalysis.isDecrease ? "text-signal" : "text-amber-400"}`}>
+                <div className={`font-medium font-mono ${tdsChangeAnalysis.isDecrease ? "text-signal" : "text-amber-400"}`}>
                   {tdsChangeAnalysis.text}
                 </div>
               </div>
@@ -404,7 +396,7 @@ export default function RiwayatPage() {
                   <CheckCircle2 size={14} /> Catatan
                 </div>
                 <div className="text-muted leading-relaxed">
-                  {selectedBatch?.notes || "UJI/COMMISSIONING Reaktor Utama"}
+                  {selectedBatch?.notes || "Siklus 1 (Live Telemetri Reaktor Utama)"}
                 </div>
               </div>
             </div>
@@ -427,10 +419,19 @@ export default function RiwayatPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#22403A" vertical={false} />
                   <XAxis dataKey="name" stroke="#8FADA3" fontSize={10} tickLine={false} axisLine={false} angle={-45} textAnchor="end" tickMargin={10} />
-                  <YAxis stroke="#8FADA3" fontSize={10} tickLine={false} axisLine={false} label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#8FADA3', fontSize: 10 }} domain={[0, 100]} />
+                  <YAxis 
+                    stroke="#8FADA3" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#8FADA3', fontSize: 10 }} 
+                    domain={[0, 'auto']} 
+                    tickFormatter={(v) => `${typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v}%`}
+                  />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0B1A17', borderColor: '#22403A', color: '#E7F2ED', fontSize: 12, borderRadius: '8px' }}
                     itemStyle={{ color: '#4ADE94' }}
+                    formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(2).replace('.', ',') : value}%`, 'Penurunan']}
                   />
                   <Area type="monotone" dataKey="penurunan" name="Penurunan (%)" stroke="#4ADE94" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTdsRiwayat)" dot={{ fill: '#0B1A17', stroke: '#4ADE94', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#4ADE94' }} />
                 </AreaChart>
