@@ -104,12 +104,22 @@ export default function Home() {
     ];
   }, []);
 
-  // Sorted active telemetry history
+  // Sorted active telemetry history (with deduplication by minute)
   const sortedHistory = useMemo(() => {
     const rawList = (summary.history && summary.history.length > 0) ? summary.history : fallbackHistory;
-    return [...rawList].sort(
+    
+    // Sort chronologically
+    const sorted = [...rawList].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
+
+    // Deduplicate anomalies (e.g., spam from hardware) where multiple points share the same HH:MM
+    const uniqueByTime = new Map<string, Reading>();
+    sorted.forEach((item) => {
+      uniqueByTime.set(formatTime(item.timestamp), item);
+    });
+
+    return Array.from(uniqueByTime.values());
   }, [summary.history, fallbackHistory]);
 
   // Latest reading from API
