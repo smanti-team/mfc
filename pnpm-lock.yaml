@@ -24,6 +24,9 @@ importers:
         specifier: ^2.12.7
         version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260820.1
+        version: 5.20260820.1
       '@tailwindcss/postcss':
         specifier: ^4.3.2
         version: 4.3.2
@@ -55,6 +58,9 @@ packages:
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudflare/workers-types@5.20260820.1':
+    resolution: {integrity: sha512-KFRmtV4toMf1LL2yXylFTIs7YAS1IYo6jrJCneBG8I1VXHcKCIdqPROH6lGum+gZ+ZgdcNZqxDgjM1yEMgma2w==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -578,6 +584,8 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
+  '@cloudflare/workers-types@5.20260820.1': {}
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -1001,7 +1009,7 @@ snapshots:
   typescript@5.9.3: {}
 
   undici-types@6.21.0: {}
-           
+
   victory-vendor@36.9.2:
     dependencies:
       '@types/d3-array': 3.2.2
