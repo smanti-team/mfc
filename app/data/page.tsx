@@ -423,37 +423,17 @@ const RenderScatterDotWithLabel = (props: any) => {
   const { cx, cy, payload } = props;
   if (cx == null || cy == null || !payload) return <g />;
 
-  const xStr = typeof payload.x === 'number' ? payload.x.toFixed(2).replace('.', ',') : payload.x;
-  const yStr = typeof payload.y === 'number' ? payload.y.toFixed(3).replace('.', ',') : payload.y;
-  const labelText = `(${xStr}%; ${yStr})`;
-
-  const isAbove = payload.labelPos === "above";
-  const textY = isAbove ? cy - 14 : cy + 20;
-
-  let anchor: "start" | "middle" | "end" = "middle";
-  let textX = cx;
-
-  if (payload.x > 24) {
-    anchor = "end";
-    textX = cx - 4;
-  } else if (payload.x < 1) {
-    anchor = "start";
-    textX = cx + 4;
-  }
-
   return (
-    <g>
-      <circle cx={cx} cy={cy} r={5} fill="#16A34A" stroke="#FFFFFF" strokeWidth={1.5} />
-      <text
-        x={textX}
-        y={textY}
-        fill="#0F172A"
-        fontSize={10}
-        fontWeight={700}
-        textAnchor={anchor}
-      >
-        {labelText}
-      </text>
+    <g className="group cursor-pointer">
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="#16A34A"
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        className="transition-transform duration-200 hover:scale-150"
+      />
     </g>
   );
 };
@@ -533,12 +513,12 @@ export default function DataPenelitianPage() {
       "Siklus 2": {
         id: "Siklus 2",
         name: "Siklus 2",
-        readings: sampleSiklus2Readings,
+        readings: [],
       },
       "Siklus 3": {
         id: "Siklus 3",
         name: "Siklus 3",
-        readings: sampleSiklus3Readings,
+        readings: [],
       },
     };
   }, [siklus1Readings]);
@@ -751,10 +731,17 @@ export default function DataPenelitianPage() {
     }));
   }, [scatterData]);
 
+  const minScatterX = useMemo(() => {
+    if (sortedScatterData.length === 0) return -5;
+    const min = Math.min(...sortedScatterData.map((d) => d.x));
+    return Math.min(-5, Math.floor(min - 2));
+  }, [sortedScatterData]);
+
   const maxScatterX = useMemo(() => {
-    if (sortedScatterData.length === 0) return 30;
+    if (sortedScatterData.length === 0) return 20;
     const max = Math.max(...sortedScatterData.map((d) => d.x));
-    return Math.max(30, Math.ceil(max + 6));
+    const pad = Math.ceil(max + 4);
+    return Math.max(15, Math.ceil(pad / 5) * 5);
   }, [sortedScatterData]);
 
   // Linear Trend Line Data for Scatter Plot (% Penurunan TDS -> Tegangan V)
@@ -1657,8 +1644,8 @@ export default function DataPenelitianPage() {
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
-                      domain={[-2.5, maxScatterX]}
-                      ticks={[0, 5, 10, 15, 20, 25, 30]}
+                      domain={[minScatterX, maxScatterX]}
+                      tickFormatter={(v) => `${v}%`}
                       label={{ value: "Penurunan TDS (%)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
@@ -1681,8 +1668,13 @@ export default function DataPenelitianPage() {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="bg-white p-2 border border-slate-200 rounded-lg shadow-md text-xs font-semibold">
-                              <p className="text-slate-900 font-mono">({data.x.toFixed(2).replace('.', ',')}%; {data.y.toFixed(3).replace('.', ',')})</p>
+                            <div className="bg-slate-900/95 text-white p-2.5 border border-slate-700 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md">
+                              <p className="text-sky-400 font-mono font-bold">
+                                Penurunan TDS: {data.x.toFixed(2).replace('.', ',')}%
+                              </p>
+                              <p className="text-emerald-400 font-mono font-bold">
+                                Tegangan MFC: {data.y.toFixed(3).replace('.', ',')} V
+                              </p>
                             </div>
                           );
                         }
