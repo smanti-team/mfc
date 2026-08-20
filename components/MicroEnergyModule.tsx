@@ -29,7 +29,7 @@ import {
   Legend,
   Cell,
 } from "recharts";
-import { saveTelemetry } from "@/lib/api";
+import { saveTelemetry, fetchLatest } from "@/lib/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -1063,6 +1063,28 @@ export default function MicroEnergyModule() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [latestV, setLatestV] = useState<number | null>(null);
+
+  // Poll API for live voltage
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { latest } = await fetchLatest();
+        if (mounted && latest && latest.voltage !== null) {
+          setLatestV(latest.voltage);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Load from localStorage
   useEffect(() => {
@@ -1095,7 +1117,7 @@ export default function MicroEnergyModule() {
       return {
         status: "—", statusSub: "Belum ada pengujian",
         config: "—", configSub: "Belum dikonfigurasi",
-        v: "— V", vSub: "Menunggu data",
+        v: latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: latestV !== null ? "Tegangan live API" : "Menunggu data",
         d: "— mW", dSub: "Menunggu data",
       };
     }
@@ -1109,7 +1131,7 @@ export default function MicroEnergyModule() {
       return {
         status: "Pengujian Beban", statusSub: "Tahap 2 sedang berlangsung",
         config: "Seri 2 Reaktor", configSub: "+ Beban 10 kΩ",
-        v: avgA !== null ? `${fmt(avgA, 2)} V` : "— V", vSub: "Hasil tanpa beban",
+        v: avgA !== null ? `${fmt(avgA, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgA !== null ? "Hasil tanpa beban" : latestV !== null ? "Tegangan live API" : "Hasil tanpa beban",
         d: avgP !== null ? `${fmt(avgP, 2)} mW` : "— mW", dSub: "Estimasi dari uji beban",
       };
     }
@@ -1121,7 +1143,7 @@ export default function MicroEnergyModule() {
       return {
         status: "Pengujian Step-Up", statusSub: "Tahap 3 sedang berlangsung",
         config: "Seri 2 Reaktor\n→ Step-Up", configSub: "",
-        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : "0,93 V", vSub: "Tegangan masuk",
+        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgVin !== null ? "Tegangan masuk" : latestV !== null ? "Tegangan live API" : "Tegangan masuk",
         d: avgVout !== null ? `${fmt(avgVout, 2)} V` : "— V", dSub: "Tegangan keluar",
       };
     }
