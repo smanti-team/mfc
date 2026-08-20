@@ -312,8 +312,8 @@ function HistoryTable({ rows, currentPhase }: { rows: SavedRow[]; currentPhase: 
             const cols = isPhase4
               ? ["Tanggal & Waktu", "Tahap", "Sub-Uji", "Parameter", "Nilai", "Catatan"]
               : isPhase3
-              ? ["Tanggal & Waktu", "Tahap", "Menit", "Vin (V)", "Vout (V)", "Catatan"]
-              : ["Tanggal & Waktu", "Tahap", "Sub-Uji", "Menit", "Tegangan (V)", "Arus (mA)", "Daya (mW)", "Catatan"];
+                ? ["Tanggal & Waktu", "Tahap", "Menit", "Vin (V)", "Vout (V)", "Catatan"]
+                : ["Tanggal & Waktu", "Tahap", "Sub-Uji", "Menit", "Tegangan (V)", "Arus (mA)", "Daya (mW)", "Catatan"];
             let csv = "\uFEFF" + cols.join(";") + "\n";
             rows.forEach(r => {
               if (isPhase4) {
@@ -957,9 +957,9 @@ function Phase4({
                         {state.saved
                           ? <span className={statusStyle(row[field] as string)}>{row[field] || "—"}</span>
                           : <input type="text" value={row[field] as string}
-                              onChange={e => onChangeB(i, field, e.target.value)}
-                              className="w-24 px-2 py-1 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                              placeholder="Menyala/Tidak" />
+                            onChange={e => onChangeB(i, field, e.target.value)}
+                            className="w-24 px-2 py-1 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            placeholder="Menyala/Tidak" />
                         }
                       </td>
                     ))}
