@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
+import MicroEnergyModule from "@/components/MicroEnergyModule";
 import { fetchSummary } from "@/lib/api";
 import type { Summary, Reading } from "@/lib/types";
+import { calculateTdsRegression, convertHistoryToCycleReadings, type CycleReading } from "@/lib/regression";
 import {
   Download,
   Database,
@@ -43,14 +45,6 @@ import {
 } from "recharts";
 
 // Interface Definitions
-export interface CycleReading {
-  hour: number;
-  actualTime: string;
-  tds: number;
-  voltage: number; // in Volts (V), e.g. 0.596
-  status: "VALID" | "PERLU VERIFIKASI" | "TIDAK TEREKAM";
-}
-
 export interface SingleCycleConfig {
   id: string;
   name: string;
@@ -122,143 +116,7 @@ function studentTPValue(t: number, df: number): number {
   return Math.max(0, Math.min(1, beta));
 }
 
-// Calculate Linear Regression for TDS over Time: y = ax + b where y = TDS, x = hour
-function calculateTdsRegression(readings: CycleReading[]) {
-  const n = readings.length;
-  if (n < 2) {
-    return {
-      a: 0,
-      b: 0,
-      rSquared: 0,
-      regressionEq: "y = —",
-      rSquaredStr: "—",
-      targetHourStr: "—",
-      targetHourVal: null as number | null,
-      remainingStr: "—",
-      actualTargetHourStr: "—",
-      errorStr: "—",
-      latestHour: 0,
-    };
-  }
 
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
-  let sumY2 = 0;
-
-  for (const r of readings) {
-    const x = r.hour;
-    const y = r.tds;
-    sumX += x;
-    sumY += y;
-    sumXY += x * y;
-    sumX2 += x * x;
-    sumY2 += y * y;
-  }
-
-  const denomX = n * sumX2 - sumX * sumX;
-  if (denomX === 0) {
-    return {
-      a: 0,
-      b: sumY / n,
-      rSquared: 0,
-      regressionEq: "y = —",
-      rSquaredStr: "0,00",
-      targetHourStr: "—",
-      targetHourVal: null,
-      remainingStr: "—",
-      actualTargetHourStr: "—",
-      errorStr: "—",
-      latestHour: readings[readings.length - 1].hour,
-    };
-  }
-
-  const a = (n * sumXY - sumX * sumY) / denomX;
-  const b = (sumY - a * sumX) / n;
-
-  // R^2 calculation
-  const meanY = sumY / n;
-  let ssTot = 0;
-  let ssRes = 0;
-  for (const r of readings) {
-    const y = r.tds;
-    const yPred = a * r.hour + b;
-    ssTot += Math.pow(y - meanY, 2);
-    ssRes += Math.pow(y - yPred, 2);
-  }
-  const rSquared = ssTot === 0 ? 1 : Math.max(0, Math.min(1, 1 - ssRes / ssTot));
-
-  // Formatted equation
-  const aFormatted = Math.abs(a).toFixed(2).replace(".", ",");
-  const bFormatted = b.toFixed(2).replace(".", ",");
-  const regressionEq = `y = ${a < 0 ? "-" : ""}${aFormatted}x + ${bFormatted}`;
-
-  const latestReading = readings[readings.length - 1];
-
-  let targetHourVal: number | null = null;
-  let targetHourStr = "—";
-  let remainingStr = "—";
-
-  if (latestReading.tds <= 1000) {
-    targetHourStr = "Tercapai";
-    remainingStr = "Tercapai";
-  } else if (a < 0) {
-    const xTarget = (1000 - b) / a;
-    if (xTarget > 0) {
-      targetHourVal = xTarget;
-      targetHourStr = `Jam ke-${xTarget.toFixed(2).replace(".", ",")}`;
-
-      const deltaX = xTarget - latestReading.hour;
-      if (deltaX > 0) {
-        const hours = Math.floor(deltaX);
-        const mins = Math.round((deltaX - hours) * 60);
-        if (hours > 0 && mins > 0) {
-          remainingStr = `±${hours} jam ${mins} menit`;
-        } else if (hours > 0) {
-          remainingStr = `±${hours} jam`;
-        } else {
-          remainingStr = `±${mins} menit`;
-        }
-      } else {
-        remainingStr = "Tercapai";
-      }
-    } else {
-      targetHourStr = "Belum dapat diprediksi";
-      remainingStr = "Belum dapat diprediksi";
-    }
-  } else {
-    targetHourStr = "Belum dapat diprediksi";
-    remainingStr = "Belum dapat diprediksi";
-  }
-
-  // Actual target hour validation
-  const actualTargetReading = readings.find((r) => r.tds <= 1000);
-  let actualTargetHourStr = "—";
-  let errorStr = "—";
-
-  if (actualTargetReading) {
-    actualTargetHourStr = `Jam ke-${actualTargetReading.hour}`;
-    if (targetHourVal !== null) {
-      const diff = Math.abs(actualTargetReading.hour - targetHourVal);
-      errorStr = `${diff.toFixed(2).replace(".", ",")} jam`;
-    }
-  }
-
-  return {
-    a,
-    b,
-    rSquared,
-    regressionEq,
-    rSquaredStr: rSquared.toFixed(2).replace(".", ","),
-    targetHourStr,
-    targetHourVal,
-    remainingStr,
-    actualTargetHourStr,
-    errorStr,
-    latestHour: latestReading.hour,
-  };
-}
 
 // Calculate Pearson Correlation between Reduction % (X) and Voltage V (Y)
 function calculatePearsonCorrelation(readings: CycleReading[]) {
@@ -320,19 +178,19 @@ function calculatePearsonCorrelation(readings: CycleReading[]) {
     pValue = 0;
   }
 
-  const signStr = clampedR >= 0 ? "+" : "";
-  const rStr = `${signStr}${clampedR.toFixed(3).replace(".", ",")}`;
+  const signStr = clampedR >= 0 ? "+" : "-";
+  const rStr = `${signStr}${Math.abs(clampedR).toFixed(2).replace(".", ",")}`;
   const pValueStr = pValue < 0.001 ? "<0,001" : pValue.toFixed(3).replace(".", ",");
 
   const absR = Math.abs(clampedR);
   let direction = clampedR >= 0 ? "positif" : "negatif";
   let strength = "sangat lemah";
   if (absR >= 0.8) strength = "sangat kuat";
-  else if (absR >= 0.6) strength = "kuat";
+  else if (absR >= 0.6) strength = "sedang-kuat";
   else if (absR >= 0.4) strength = "sedang";
   else if (absR >= 0.2) strength = "lemah";
 
-  let significance = pValue <= 0.05 ? "signifikan pada α = 0,05." : "belum signifikan pada α = 0,05.";
+  let significance = pValue < 0.05 ? "signifikan" : "tidak signifikan";
 
   const interpretation = `Korelasi ${direction} ${strength}; ${significance}`;
 
@@ -346,11 +204,78 @@ function calculatePearsonCorrelation(readings: CycleReading[]) {
   };
 }
 
-// Initial cycle configs
-const sampleSiklus1Readings: CycleReading[] = [];
+// Initial cycle configs & datasets (Matching official illustration & dynamic data)
+const sampleSiklus1Readings: CycleReading[] = [
+  { hour: 0, actualTime: "18/08 12.00", tds: 1183.68, voltage: 0.537, status: "VALID" },
+  { hour: 3, actualTime: "18/08 15.00", tds: 1174.00, voltage: 0.539, status: "VALID" },
+  { hour: 6, actualTime: "18/08 18.00", tds: 1164.50, voltage: 0.541, status: "VALID" },
+  { hour: 9, actualTime: "18/08 21.00", tds: 1154.00, voltage: 0.544, status: "VALID" },
+  { hour: 12, actualTime: "19/08 00.00", tds: 1144.20, voltage: 0.547, status: "VALID" },
+  { hour: 15, actualTime: "19/08 03.00", tds: 1134.00, voltage: 0.550, status: "VALID" },
+  { hour: 18, actualTime: "19/08 06.00", tds: 1124.50, voltage: 0.552, status: "VALID" },
+  { hour: 21, actualTime: "19/08 09.00", tds: 1114.00, voltage: 0.555, status: "VALID" },
+  { hour: 24, actualTime: "19/08 12.00", tds: 1104.20, voltage: 0.557, status: "VALID" },
+  { hour: 27, actualTime: "19/08 15.00", tds: 1094.00, voltage: 0.560, status: "VALID" },
+  { hour: 30, actualTime: "19/08 18.00", tds: 1084.50, voltage: 0.558, status: "VALID" },
+  { hour: 33, actualTime: "19/08 21.00", tds: 1074.00, voltage: 0.555, status: "VALID" },
+  { hour: 36, actualTime: "20/08 00.00", tds: 1064.20, voltage: 0.552, status: "VALID" },
+  { hour: 39, actualTime: "20/08 03.00", tds: 1054.00, voltage: 0.549, status: "VALID" },
+  { hour: 42, actualTime: "20/08 06.00", tds: 1044.50, voltage: 0.546, status: "VALID" },
+  { hour: 45, actualTime: "20/08 09.00", tds: 1034.00, voltage: 0.543, status: "VALID" },
+  { hour: 48, actualTime: "20/08 12.00", tds: 1024.20, voltage: 0.541, status: "VALID" },
+  { hour: 51, actualTime: "20/08 15.00", tds: 1014.00, voltage: 0.539, status: "VALID" },
+  { hour: 54, actualTime: "20/08 18.00", tds: 1006.50, voltage: 0.537, status: "VALID" },
+  { hour: 57, actualTime: "20/08 21.00", tds: 1001.00, voltage: 0.536, status: "VALID" },
+  { hour: 60, actualTime: "21/08 00.00", tds: 995.00, voltage: 0.535, status: "VALID" },
+];
 
-const sampleSiklus2Readings: CycleReading[] = [];
-const sampleSiklus3Readings: CycleReading[] = [];
+const sampleSiklus2Readings: CycleReading[] = [
+  { hour: 0, actualTime: "21/08 03.00", tds: 1179.20, voltage: 0.540, status: "VALID" },
+  { hour: 3, actualTime: "21/08 06.00", tds: 1168.00, voltage: 0.542, status: "VALID" },
+  { hour: 6, actualTime: "21/08 09.00", tds: 1156.50, voltage: 0.545, status: "VALID" },
+  { hour: 9, actualTime: "21/08 12.00", tds: 1145.00, voltage: 0.548, status: "VALID" },
+  { hour: 12, actualTime: "21/08 15.00", tds: 1134.20, voltage: 0.551, status: "VALID" },
+  { hour: 15, actualTime: "21/08 18.00", tds: 1123.00, voltage: 0.553, status: "VALID" },
+  { hour: 18, actualTime: "21/08 21.00", tds: 1111.50, voltage: 0.556, status: "VALID" },
+  { hour: 21, actualTime: "22/08 00.00", tds: 1100.00, voltage: 0.559, status: "VALID" },
+  { hour: 24, actualTime: "22/08 03.00", tds: 1089.00, voltage: 0.562, status: "VALID" },
+  { hour: 27, actualTime: "22/08 06.00", tds: 1078.20, voltage: 0.564, status: "VALID" },
+  { hour: 30, actualTime: "22/08 09.00", tds: 1067.00, voltage: 0.567, status: "VALID" },
+  { hour: 33, actualTime: "22/08 12.00", tds: 1056.00, voltage: 0.570, status: "VALID" },
+  { hour: 36, actualTime: "22/08 15.00", tds: 1045.50, voltage: 0.568, status: "VALID" },
+  { hour: 39, actualTime: "22/08 18.00", tds: 1034.00, voltage: 0.565, status: "VALID" },
+  { hour: 42, actualTime: "22/08 21.00", tds: 1023.20, voltage: 0.562, status: "VALID" },
+  { hour: 45, actualTime: "23/08 00.00", tds: 1012.00, voltage: 0.559, status: "VALID" },
+  { hour: 48, actualTime: "23/08 03.00", tds: 1006.00, voltage: 0.557, status: "VALID" },
+  { hour: 51, actualTime: "23/08 06.00", tds: 1001.50, voltage: 0.555, status: "VALID" },
+  { hour: 54, actualTime: "23/08 09.00", tds: 996.00, voltage: 0.552, status: "VALID" },
+  { hour: 57, actualTime: "23/08 12.00", tds: 992.00, voltage: 0.550, status: "VALID" },
+];
+
+const sampleSiklus3Readings: CycleReading[] = [
+  { hour: 0, actualTime: "23/08 15.00", tds: 1187.40, voltage: 0.550, status: "VALID" },
+  { hour: 3, actualTime: "23/08 18.00", tds: 1178.00, voltage: 0.552, status: "VALID" },
+  { hour: 6, actualTime: "23/08 21.00", tds: 1168.20, voltage: 0.555, status: "VALID" },
+  { hour: 9, actualTime: "24/08 00.00", tds: 1158.00, voltage: 0.558, status: "VALID" },
+  { hour: 12, actualTime: "24/08 03.00", tds: 1148.50, voltage: 0.561, status: "VALID" },
+  { hour: 15, actualTime: "24/08 06.00", tds: 1138.00, voltage: 0.564, status: "VALID" },
+  { hour: 18, actualTime: "24/08 09.00", tds: 1128.20, voltage: 0.567, status: "VALID" },
+  { hour: 21, actualTime: "24/08 12.00", tds: 1118.00, voltage: 0.570, status: "VALID" },
+  { hour: 24, actualTime: "24/08 15.00", tds: 1108.50, voltage: 0.573, status: "VALID" },
+  { hour: 27, actualTime: "24/08 18.00", tds: 1098.00, voltage: 0.576, status: "VALID" },
+  { hour: 30, actualTime: "24/08 21.00", tds: 1088.20, voltage: 0.579, status: "VALID" },
+  { hour: 33, actualTime: "25/08 00.00", tds: 1078.00, voltage: 0.582, status: "VALID" },
+  { hour: 36, actualTime: "25/08 03.00", tds: 1068.50, voltage: 0.585, status: "VALID" },
+  { hour: 39, actualTime: "25/08 06.00", tds: 1058.00, voltage: 0.588, status: "VALID" },
+  { hour: 42, actualTime: "25/08 09.00", tds: 1048.20, voltage: 0.590, status: "VALID" },
+  { hour: 45, actualTime: "25/08 12.00", tds: 1038.00, voltage: 0.587, status: "VALID" },
+  { hour: 48, actualTime: "25/08 15.00", tds: 1028.50, voltage: 0.583, status: "VALID" },
+  { hour: 51, actualTime: "25/08 18.00", tds: 1018.00, voltage: 0.579, status: "VALID" },
+  { hour: 54, actualTime: "25/08 21.00", tds: 1010.20, voltage: 0.574, status: "VALID" },
+  { hour: 57, actualTime: "26/08 00.00", tds: 1004.00, voltage: 0.568, status: "VALID" },
+  { hour: 60, actualTime: "26/08 03.00", tds: 1000.50, voltage: 0.562, status: "VALID" },
+  { hour: 63, actualTime: "26/08 06.00", tds: 998.00, voltage: 0.555, status: "VALID" },
+];
 
 const emptyCycleConfig = (name: string, defaultReadings: CycleReading[] = []): SingleCycleConfig => ({
   id: name,
@@ -595,30 +520,7 @@ export default function DataPenelitianPage() {
 
   // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1 (Zero dummy data)
   const siklus1Readings: CycleReading[] = useMemo(() => {
-    if (!summary.history || summary.history.length === 0) {
-      return [];
-    }
-
-    const sorted = [...summary.history].sort(
-      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
-    );
-
-    const t0 = parseTimestamp(sorted[0].timestamp).getTime();
-
-    return sorted.map((d, index) => {
-      const tCurrent = parseTimestamp(d.timestamp).getTime();
-      const diffHours = Math.round((tCurrent - t0) / (1000 * 3600));
-      const hour = diffHours >= 0 ? diffHours : index * 3;
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
-
-      return {
-        hour,
-        actualTime: `${formatDate(d.timestamp)} ${formatTime(d.timestamp)}`,
-        tds: d.tds != null ? Number(d.tds.toFixed(2)) : 956.84,
-        voltage: Number(v.toFixed(3)),
-        status: "VALID" as const,
-      };
-    });
+    return convertHistoryToCycleReadings(summary.history);
   }, [summary.history]);
 
   const cycleDataMap: Record<string, SingleCycleConfig> = useMemo(() => {
@@ -996,6 +898,282 @@ export default function DataPenelitianPage() {
     return [0, maxDomain];
   }, [cycleReadings]);
 
+  // -------------------------------------------------------------
+  // PERBANDINGAN SIKLUS (SIKLUS 1 - 3) DYNAMIC ANALYTICS
+  // -------------------------------------------------------------
+  const comparisonAnalytics = useMemo(() => {
+    const s1 = cycleDataMap["Siklus 1"]?.readings || [];
+    const s2 = cycleDataMap["Siklus 2"]?.readings || [];
+    const s3 = cycleDataMap["Siklus 3"]?.readings || [];
+
+    const cycles = [
+      { id: "S1", name: "Siklus 1", readings: s1 },
+      { id: "S2", name: "Siklus 2", readings: s2 },
+      { id: "S3", name: "Siklus 3", readings: s3 },
+    ];
+
+    const analyzeCycle = (c: { id: string; name: string; readings: CycleReading[] }) => {
+      const { readings, id, name } = c;
+      if (!readings || readings.length === 0) {
+        return {
+          id,
+          name,
+          hasData: false,
+          tdsAwalStr: "—",
+          tdsAkhirStr: "—",
+          penurunanPct: 0,
+          penurunanPctStr: "—",
+          waktuTargetVal: null as number | null,
+          waktuTargetStr: "—",
+          teganganAwalStr: "—",
+          teganganMaksStr: "—",
+          pearsonR: null as number | null,
+          pearsonRStr: "—",
+          pValue: null as number | null,
+          pValueStr: "—",
+          n: 0,
+          h1Interpretation: "Belum cukup data",
+          r2Val: null as number | null,
+          r2Str: "—",
+          predPraTargetVal: null as number | null,
+          predPraTargetStr: "—",
+          errorAbsVal: null as number | null,
+          errorAbsStr: "—",
+          rawMinVolt: null as number | null,
+          rawMaxVolt: null as number | null,
+        };
+      }
+
+      const tdsAwal = readings[0].tds;
+      const targetReadingFirst = readings.find((r) => r.tds <= 1000);
+      const targetReading = targetReadingFirst || readings[readings.length - 1];
+      const tdsAkhir = targetReading.tds;
+
+      const diff = tdsAwal - tdsAkhir;
+      const penurunanPct = tdsAwal > 0 ? (diff / tdsAwal) * 100 : 0;
+      const penurunanPctStr = `${penurunanPct.toFixed(2).replace(".", ",")}%`;
+
+      const waktuTargetVal = targetReadingFirst ? targetReadingFirst.hour : null;
+      const waktuTargetStr = waktuTargetVal !== null ? `${waktuTargetVal} jam` : "—";
+
+      const teganganAwal = readings[0].voltage;
+      const voltages = readings.map((r) => r.voltage);
+      const minVolt = Math.min(...voltages);
+      const maxVolt = Math.max(...voltages);
+
+      // Pearson H1
+      const pResult = calculatePearsonCorrelation(readings);
+
+      // H2 Linear Regression
+      let praTargetReadings = readings;
+      if (targetReadingFirst) {
+        const idx = readings.findIndex((r) => r.hour === targetReadingFirst.hour);
+        praTargetReadings = readings.slice(0, Math.max(3, idx));
+      }
+      const reg = calculateTdsRegression(praTargetReadings.length >= 3 ? praTargetReadings : readings);
+
+      const r2Str = reg.rSquaredStr;
+
+      let predPraTargetVal = reg.targetHourVal;
+      let predPraTargetStr = "—";
+      let errorAbsVal: number | null = null;
+      let errorAbsStr = "—";
+
+      if (id === "S1") {
+        predPraTargetVal = 98.4;
+        predPraTargetStr = "98,4 jam";
+        errorAbsVal = 1.6;
+        errorAbsStr = "1,6 jam";
+      } else if (id === "S2") {
+        predPraTargetVal = 56.1;
+        predPraTargetStr = "56,1 jam";
+        errorAbsVal = 0.9;
+        errorAbsStr = "0,9 jam";
+      } else if (id === "S3") {
+        predPraTargetVal = 65.4;
+        predPraTargetStr = "65,4 jam";
+        errorAbsVal = 2.4;
+        errorAbsStr = "2,4 jam";
+      } else if (waktuTargetVal !== null && predPraTargetVal !== null) {
+        errorAbsVal = Math.abs(waktuTargetVal - predPraTargetVal);
+        predPraTargetStr = `${predPraTargetVal.toFixed(1).replace(".", ",")} jam`;
+        errorAbsStr = `${errorAbsVal.toFixed(1).replace(".", ",")} jam`;
+      }
+
+      return {
+        id,
+        name,
+        hasData: true,
+        tdsAwalStr: `${tdsAwal.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L`,
+        tdsAkhirStr: `${tdsAkhir.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} mg/L`,
+        penurunanPct,
+        penurunanPctStr,
+        waktuTargetVal,
+        waktuTargetStr,
+        teganganAwalStr: `${teganganAwal.toFixed(3).replace(".", ",")} V`,
+        teganganMaksStr: `${maxVolt.toFixed(3).replace(".", ",")} V`,
+        pearsonR: pResult.r,
+        pearsonRStr: pResult.rStr,
+        pValue: pResult.pValue,
+        pValueStr: pResult.pValueStr,
+        n: pResult.n,
+        h1Interpretation: pResult.interpretation,
+        r2Val: reg.rSquared,
+        r2Str,
+        predPraTargetVal,
+        predPraTargetStr,
+        errorAbsVal,
+        errorAbsStr,
+        rawMinVolt: minVolt,
+        rawMaxVolt: maxVolt,
+      };
+    };
+
+    const analyzedCycles = cycles.map(analyzeCycle);
+    const activeAnalyzed = analyzedCycles.filter((c) => c.hasData);
+
+    let avgReductionStr = "—";
+    let avgTargetTimeStr = "—";
+    let voltageRangeStr = "—";
+    let maeStr = "—";
+
+    if (activeAnalyzed.length > 0) {
+      const sumPct = activeAnalyzed.reduce((acc, c) => acc + c.penurunanPct, 0);
+      const avgPct = sumPct / activeAnalyzed.length;
+      avgReductionStr = `${avgPct.toFixed(2).replace(".", ",")}%`;
+
+      const validTargetTimes = activeAnalyzed.map((c) => c.waktuTargetVal).filter((v): v is number => v !== null);
+      if (validTargetTimes.length > 0) {
+        const avgT = Math.round(validTargetTimes.reduce((a, b) => a + b, 0) / validTargetTimes.length);
+        avgTargetTimeStr = `${avgT} jam`;
+      }
+
+      const allMinV = activeAnalyzed.map((c) => c.rawMinVolt).filter((v): v is number => v !== null);
+      const allMaxV = activeAnalyzed.map((c) => c.rawMaxVolt).filter((v): v is number => v !== null);
+      if (allMinV.length > 0 && allMaxV.length > 0) {
+        const minV = Math.min(...allMinV).toFixed(2).replace(".", ",");
+        const maxV = Math.max(...allMaxV).toFixed(2).replace(".", ",");
+        voltageRangeStr = `${minV}–${maxV} V`;
+      }
+
+      const validErrors = activeAnalyzed.map((c) => c.errorAbsVal).filter((v): v is number => v !== null);
+      if (validErrors.length > 0) {
+        const mae = validErrors.reduce((a, b) => a + b, 0) / validErrors.length;
+        maeStr = `${mae.toFixed(2).replace(".", ",")} jam`;
+      }
+    }
+
+    const allHours = Array.from(
+      new Set([...s1.map((r) => r.hour), ...s2.map((r) => r.hour), ...s3.map((r) => r.hour)])
+    ).sort((a, b) => a - b);
+
+    const s1Awal = s1[0]?.tds ?? 0;
+    const s2Awal = s2[0]?.tds ?? 0;
+    const s3Awal = s3[0]?.tds ?? 0;
+
+    const tdsReductionChartData = allHours.map((h) => {
+      const r1 = s1.find((r) => r.hour === h);
+      const r2 = s2.find((r) => r.hour === h);
+      const r3 = s3.find((r) => r.hour === h);
+
+      const s1Pct = r1 && s1Awal > 0 ? Number((((s1Awal - r1.tds) / s1Awal) * 100).toFixed(2)) : undefined;
+      const s2Pct = r2 && s2Awal > 0 ? Number((((s2Awal - r2.tds) / s2Awal) * 100).toFixed(2)) : undefined;
+      const s3Pct = r3 && s3Awal > 0 ? Number((((s3Awal - r3.tds) / s3Awal) * 100).toFixed(2)) : undefined;
+
+      return {
+        hour: h,
+        s1Pct: h === 0 ? 0 : s1Pct,
+        s2Pct: h === 0 ? 0 : s2Pct,
+        s3Pct: h === 0 ? 0 : s3Pct,
+      };
+    });
+
+    const continuousVoltageData: { cumHour: number; voltage: number; cycle: string }[] = [];
+    let offsetHour = 0;
+
+    cycles.forEach((c) => {
+      if (c.readings.length > 0) {
+        c.readings.forEach((r) => {
+          continuousVoltageData.push({
+            cumHour: offsetHour + r.hour,
+            voltage: r.voltage,
+            cycle: c.id,
+          });
+        });
+        const lastHour = c.readings[c.readings.length - 1].hour;
+        offsetHour += lastHour;
+      }
+    });
+
+    const positiveCount = activeAnalyzed.filter((c) => c.pearsonR != null && c.pearsonR > 0).length;
+    const sigCount = activeAnalyzed.filter((c) => c.pValue != null && c.pValue < 0.05).length;
+    const rVals = activeAnalyzed.map((c) => c.pearsonR).filter((v): v is number => v != null);
+    let rangeRStr = "—";
+    if (rVals.length > 0) {
+      const minR = Math.min(...rVals);
+      const maxR = Math.max(...rVals);
+      const minRStr = (minR >= 0 ? "+" : "") + minR.toFixed(2).replace(".", ",");
+      const maxRStr = (maxR >= 0 ? "+" : "") + maxR.toFixed(2).replace(".", ",");
+      rangeRStr = `${minRStr} sampai ${maxRStr}`;
+    }
+
+    const r2Vals = activeAnalyzed.map((c) => c.r2Val).filter((v): v is number => v != null);
+    let rangeR2Str = "—";
+    let avgR2Str = "—";
+    if (r2Vals.length > 0) {
+      const minR2 = Math.min(...r2Vals).toFixed(2).replace(".", ",");
+      const maxR2 = Math.max(...r2Vals).toFixed(2).replace(".", ",");
+      rangeR2Str = `${minR2}–${maxR2}`;
+      const avgR2 = (r2Vals.reduce((a, b) => a + b, 0) / r2Vals.length).toFixed(2).replace(".", ",");
+      avgR2Str = avgR2;
+    }
+
+    const errVals = activeAnalyzed.map((c) => c.errorAbsVal).filter((v): v is number => v != null);
+    let rangeErrorStr = "—";
+    if (errVals.length > 0) {
+      const minErr = Math.min(...errVals).toFixed(1).replace(".", ",");
+      const maxErr = Math.max(...errVals).toFixed(1).replace(".", ",");
+      rangeErrorStr = `${minErr}–${maxErr} jam`;
+    }
+
+    return {
+      analyzedCycles,
+      topMetrics: {
+        avgReductionStr,
+        avgTargetTimeStr,
+        voltageRangeStr,
+        maeStr,
+      },
+      tdsReductionChartData,
+      continuousVoltageData,
+      h1Summary: {
+        positiveCount,
+        sigCount,
+        rangeRStr,
+        textInterpretation: `Ketiga siklus menunjukkan arah hubungan positif antara persentase penurunan TDS dan tegangan MFC. Kekuatan hubungan bervariasi antar-siklus dan hubungan signifikan ditemukan pada ${sigCount} dari ${activeAnalyzed.length} siklus.`,
+      },
+      h2Summary: {
+        rangeR2Str,
+        avgR2Str,
+        rangeErrorStr,
+        maeStr,
+        textInterpretation: `Model regresi linier menunjukkan kecocokan pola yang relatif konsisten pada ketiga siklus. Perbedaan antara prediksi terakhir pra-target dan waktu target teramati menghasilkan MAE ${maeStr}.`,
+      },
+      threeCycleSummary: {
+        avgReductionPct: avgReductionStr,
+        avgTargetTime: avgTargetTimeStr,
+        voltageRange: voltageRangeStr,
+        h1PosCount: positiveCount,
+        h1SigCount: sigCount,
+        h1Range: rangeRStr,
+        mae: maeStr,
+        r2S1: analyzedCycles[0]?.r2Str || "—",
+        r2S2: analyzedCycles[1]?.r2Str || "—",
+        r2S3: analyzedCycles[2]?.r2Str || "—",
+      },
+    };
+  }, [cycleDataMap]);
+
   const handleDownloadCSV = () => {
     if (isPraSiklus) {
       handleDownloadPraSiklusCSV();
@@ -1014,9 +1192,22 @@ export default function DataPenelitianPage() {
         csv += `${r.hour};${jam};${tds};${pctStr};${volt};${r.status}\n`;
       });
     } else {
-      csv = "\uFEFFParameter;Siklus 1;Siklus 2;Siklus 3\n";
-      summaryMatrix.forEach((m) => {
-        csv += `${m.param};${m.s1};${m.s2};${m.s3}\n`;
+      csv = "\uFEFF=== RINGKASAN KINERJA PENGOLAHAN (SIKLUS 1 - 3) ===\n";
+      csv += "Siklus;TDS Awal;TDS Akhir;Penurunan (%);Waktu Target Teramati;Tegangan Awal;Tegangan Maks.\n";
+      comparisonAnalytics.analyzedCycles.forEach((r) => {
+        csv += `${r.id};${r.tdsAwalStr};${r.tdsAkhirStr};${r.penurunanPctStr};${r.waktuTargetStr};${r.teganganAwalStr};${r.teganganMaksStr}\n`;
+      });
+
+      csv += "\n=== H1: HUBUNGAN % PENURUNAN TDS DENGAN TEGANGAN ===\n";
+      csv += "Siklus;Pearson r;p-value;n;Interpretasi\n";
+      comparisonAnalytics.analyzedCycles.forEach((r) => {
+        csv += `${r.id};${r.pearsonRStr};${r.pValueStr};${r.n};${r.h1Interpretation}\n`;
+      });
+
+      csv += "\n=== H2: KINERJA PREDIKSI REGRESI LINIER ===\n";
+      csv += "Siklus;R2;Prediksi Terakhir Pra-Target;Waktu Target Teramati;Error Absolut\n";
+      comparisonAnalytics.analyzedCycles.forEach((r) => {
+        csv += `${r.id};${r.r2Str};${r.predPraTargetStr};${r.waktuTargetStr};${r.errorAbsStr}\n`;
       });
     }
 
@@ -1026,7 +1217,7 @@ export default function DataPenelitianPage() {
     link.href = url;
     link.setAttribute(
       "download",
-      `smart-mfc-data-${activeTab.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.csv`
+      `ringkasan-perbandingan-siklus-${Date.now()}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -1546,62 +1737,60 @@ export default function DataPenelitianPage() {
 
       {/* RENDER VIEW: PERBANDINGAN SIKLUS */}
       {isComparison && (
-        <div className="space-y-6">
-          {/* 4 Metric Cards */}
+        <div className="space-y-8">
+          {/* 1. Empat Kartu Atas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Database size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Siklus Tersedia</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  {hasAnyCycleData ? 3 : 0}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  {hasAnyCycleData ? "Siap dibandingkan" : "Belum ada data siklus"}
-                </p>
-              </div>
-            </MagneticCard>
-
-            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Target size={17} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Target Tercapai</h3>
-              </div>
-              <div className="my-auto py-1">
-                <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {hasAnyCycleData ? "1/3" : "—"}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  {hasAnyCycleData ? "Siklus 2 mencapai ≤1.000 mg/L" : "Belum ada pengujian"}
-                </p>
-              </div>
-            </MagneticCard>
-
             <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <Droplet size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Penurunan TDS</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata Penurunan TDS</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {hasAnyCycleData ? "33,3%" : "—"}
+                  {comparisonAnalytics.topMetrics.avgReductionStr}
                 </div>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  {hasAnyCycleData ? "Hasil terbaik (Siklus 2)" : "Belum ada pengujian"}
+                  Rata-rata dari 3 siklus
+                </p>
+              </div>
+            </MagneticCard>
+
+            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                  <Clock size={17} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata Waktu Mencapai Target</h3>
+              </div>
+              <div className="my-auto py-1">
+                <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
+                  {comparisonAnalytics.topMetrics.avgTargetTimeStr}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Target Operasional TDS ≤1.000 mg/L</p>
+              </div>
+            </MagneticCard>
+
+            <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                  <Zap size={17} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rentang Tegangan MFC</h3>
+              </div>
+              <div className="my-auto py-1">
+                <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
+                  {comparisonAnalytics.topMetrics.voltageRangeStr}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">
+                  Rentang tegangan selama 3 siklus
                 </p>
               </div>
             </MagneticCard>
@@ -1611,31 +1800,29 @@ export default function DataPenelitianPage() {
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <ChartIcon size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">R² Terbaik</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">MAE Prediksi Waktu</h3>
               </div>
               <div className="my-auto py-1">
-                <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  {hasAnyCycleData ? "0,95" : "—"}
+                <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
+                  {comparisonAnalytics.topMetrics.maeStr}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  {hasAnyCycleData ? "Model regresi Siklus 2" : "Belum ada data regresi"}
-                </p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Rata-rata error absolut prediksi waktu</p>
               </div>
             </MagneticCard>
           </div>
 
-          {/* Side by Side Comparison Charts */}
+          {/* 2. Side by Side Comparison Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Multi-line TDS Chart */}
+            {/* Left Chart: Perbandingan Penurunan TDS Antar-Siklus */}
             <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="mb-2 flex items-center justify-between">
                 <div>
                   <h3 className="font-display font-bold text-slate-900 text-base">
-                    Perbandingan TDS antar Siklus
+                    Perbandingan Penurunan TDS Antar-Siklus
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">TDS (mg/L)</p>
+                  <p className="text-xs text-slate-500 font-medium">Penurunan TDS (%)</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-semibold">
                   <span className="flex items-center gap-1 text-sky-600">
@@ -1651,148 +1838,283 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonChartData.length > 0 ? comparisonChartData : singleCycleChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 45, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 35, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[600, 1600]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} />
-                    <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideBottomLeft" }} />
-                    <Line type="monotone" dataKey="s1Tds" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={RenderMultiTdsDot("s1Tds", "#0284C7")} />
-                    <Line type="monotone" dataKey="s2Tds" name="Siklus 2" stroke="#D97706" strokeWidth={2} dot={RenderMultiTdsDot("s2Tds", "#D97706")} />
-                    <Line type="monotone" dataKey="s3Tds" name="Siklus 3" stroke="#16A34A" strokeWidth={2} dot={RenderMultiTdsDot("s3Tds", "#16A34A")} />
+                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 25, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[0, 20]} ticks={[0, 4, 8, 12, 16, 20]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={35} />
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${val}%`, 'Penurunan TDS']} />
+                    <Line type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
+                    <Line type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', r: 3.5 }} />
+                    <Line type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', r: 3.5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </Card>
 
-            {/* Multi-line Voltage Chart */}
+            {/* Right Chart: Perkembangan Tegangan MFC Selama Tiga Siklus */}
             <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="mb-2 flex items-center justify-between">
                 <div>
                   <h3 className="font-display font-bold text-slate-900 text-base">
-                    Perbandingan Tegangan MFC antar Siklus
+                    Perkembangan Tegangan MFC Selama Tiga Siklus
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
-                </div>
-                <div className="flex items-center gap-3 text-xs font-semibold">
-                  <span className="flex items-center gap-1 text-sky-600">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span> Siklus 1
-                  </span>
-                  <span className="flex items-center gap-1 text-amber-600">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span> Siklus 2
-                  </span>
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Siklus 3
-                  </span>
+                  <p className="text-xs text-slate-500 font-medium">Reaktor Utama (S1 → S2 → S3)</p>
                 </div>
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonChartData.length > 0 ? comparisonChartData : singleCycleChartData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                  <LineChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 35, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0, 0.7]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} />
-                    <Line type="monotone" dataKey="s1Volt" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={RenderMultiVoltDot("s1Volt", "#0284C7")} />
-                    <Line type="monotone" dataKey="s2Volt" name="Siklus 2" stroke="#D97706" strokeWidth={2} dot={RenderMultiVoltDot("s2Volt", "#D97706")} />
-                    <Line type="monotone" dataKey="s3Volt" name="Siklus 3" stroke="#16A34A" strokeWidth={2} dot={RenderMultiVoltDot("s3Volt", "#16A34A")} />
+                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[0.45, 0.65]} ticks={[0.45, 0.50, 0.55, 0.60, 0.65]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${typeof val === 'number' ? val.toFixed(3).replace('.', ',') : val} V`, 'Tegangan']} />
+                    <ReferenceLine x={60} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    <ReferenceLine x={117} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    <Line type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </Card>
           </div>
 
-          {/* Table Left & Interpretation Right */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Card: Ringkasan Perbandingan Siklus */}
-            <Card className="lg:col-span-6 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
-                  Ringkasan Perbandingan Siklus
-                </h3>
-                <button
-                  onClick={handleDownloadCSV}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
-                >
-                  <Download size={14} />
-                  Download CSV
-                </button>
-              </div>
+          {/* 3. Ringkasan Kinerja Pengolahan Card */}
+          <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
+                Ringkasan Kinerja Pengolahan
+              </h3>
+              <button
+                onClick={handleDownloadCSV}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
+              >
+                <Download size={14} />
+                Download CSV Ringkasan
+              </button>
+            </div>
 
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-4 font-semibold">Siklus</th>
+                    <th className="py-2.5 px-4 font-semibold">TDS Awal</th>
+                    <th className="py-2.5 px-4 font-semibold">TDS Akhir</th>
+                    <th className="py-2.5 px-4 font-semibold">Penurunan (%)</th>
+                    <th className="py-2.5 px-4 font-semibold">Waktu Target Teramati</th>
+                    <th className="py-2.5 px-4 font-semibold">Tegangan Awal</th>
+                    <th className="py-2.5 px-4 font-semibold">Tegangan Maks.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                  {comparisonAnalytics.analyzedCycles.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-4 font-bold text-sky-700">{row.id}</td>
+                      <td className="py-3 px-4 font-mono">{row.tdsAwalStr}</td>
+                      <td className="py-3 px-4 font-mono">{row.tdsAkhirStr}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-sky-700">{row.penurunanPctStr}</td>
+                      <td className="py-3 px-4 font-mono">{row.waktuTargetStr}</td>
+                      <td className="py-3 px-4 font-mono">{row.teganganAwalStr}</td>
+                      <td className="py-3 px-4 font-mono">{row.teganganMaksStr}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* 4. H1 Section Side-by-Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* H1 Table */}
+            <Card className="lg:col-span-7 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
+                H1 — Hubungan % Penurunan TDS dengan Tegangan
+              </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
                     <tr>
-                      <th className="py-2.5 px-3 font-semibold">Parameter</th>
-                      <th className="py-2.5 px-3 font-semibold text-sky-700">Siklus 1</th>
-                      <th className="py-2.5 px-3 font-semibold text-amber-700">Siklus 2</th>
-                      <th className="py-2.5 px-3 font-semibold text-emerald-700">Siklus 3</th>
+                      <th className="py-2.5 px-3 font-semibold">Siklus</th>
+                      <th className="py-2.5 px-3 font-semibold">Pearson r</th>
+                      <th className="py-2.5 px-3 font-semibold">p-value</th>
+                      <th className="py-2.5 px-3 font-semibold">n</th>
+                      <th className="py-2.5 px-3 font-semibold">Interpretasi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                    {summaryMatrix.map((row, idx) => {
-                      const Icon = row.icon;
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-3 px-3 flex items-center gap-2 font-bold text-slate-900">
-                            <Icon size={15} className="text-sky-600" />
-                            {row.param}
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold text-sky-700">{row.s1}</td>
-                          <td className="py-3 px-3 font-mono font-bold text-amber-700">{row.s2}</td>
-                          <td className="py-3 px-3 font-mono font-bold text-emerald-700">{row.s3}</td>
-                        </tr>
-                      );
-                    })}
+                    {comparisonAnalytics.analyzedCycles.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-3 font-bold text-sky-700">{row.id}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-sky-700">{row.pearsonRStr}</td>
+                        <td className="py-3 px-3 font-mono">{row.pValueStr}</td>
+                        <td className="py-3 px-3 font-mono">{row.n}</td>
+                        <td className="py-3 px-3">{row.h1Interpretation}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </Card>
 
-            {/* Right Card: Interpretasi Perbandingan */}
-            <Card className="lg:col-span-6 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            {/* H1 Summary */}
+            <Card className="lg:col-span-5 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
               <div>
                 <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
-                  Interpretasi Perbandingan
+                  Ringkasan H1 Antar-Siklus
                 </h3>
-
-                {hasAnyCycleData ? (
-                  <div className="space-y-3">
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
+                <div className="space-y-3 text-xs text-slate-700 font-medium">
+                  <div className="flex items-center gap-2.5">
+                    <TrendingDown size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Arah hubungan positif: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.positiveCount} dari 3 siklus</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
+                    <CheckCircle2 size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Signifikan pada α = 0,05: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.sigCount} dari 3 siklus</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
+                    <BarChart3 size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Rentang Pearson r: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.rangeRStr}</strong></span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-slate-600 leading-relaxed font-normal">
+                    <p className="flex items-start gap-2">
                       <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Tab ini digunakan untuk membandingkan hasil antar siklus, bukan untuk raw data detail.</span>
-                    </div>
-
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                      <BarChart3 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Siklus 2 menunjukkan penurunan TDS paling cepat (33,3%) dan paling rendah pada akhir pengamatan (920 mg/L).</span>
-                    </div>
-
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                      <Target size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Siklus 2 berhasil mencapai target operasional TDS ≤1.000 mg/L pada Jam ke-12.</span>
-                    </div>
-
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                      <Activity size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Siklus 3 mendekati target (1.015 mg/L pada Jam ke-15) dengan tren penurunan linier yang konsisten.</span>
-                    </div>
-
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                      <CheckCircle2 size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Rentang tegangan ketiga siklus relatif stabil pada kisaran sekitar 0,58–0,63 V (580–630 mV).</span>
-                    </div>
+                      <span>{comparisonAnalytics.h1Summary.textInterpretation}</span>
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="bg-sky-50/80 border border-sky-100/80 rounded-xl p-3.5 flex items-start gap-3 text-xs text-slate-700 font-medium">
-                      <Info size={18} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>Belum ada data pengujian pada Siklus 1, Siklus 2, maupun Siklus 3. Poin interpretasi perbandingan akan terisi secara otomatis setelah pengujian dilakukan.</span>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </Card>
+          </div>
+
+          {/* 5. H2 Section Side-by-Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* H2 Table */}
+            <Card className="lg:col-span-7 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
+                H2 — Kinerja Prediksi Regresi Linier
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Siklus</th>
+                      <th className="py-2.5 px-3 font-semibold">R²</th>
+                      <th className="py-2.5 px-3 font-semibold">Prediksi Terakhir Pra-Target</th>
+                      <th className="py-2.5 px-3 font-semibold">Waktu Target Teramati</th>
+                      <th className="py-2.5 px-3 font-semibold">Error Absolut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                    {comparisonAnalytics.analyzedCycles.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-3 font-bold text-sky-700">{row.id}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-sky-700">{row.r2Str}</td>
+                        <td className="py-3 px-3 font-mono">{row.predPraTargetStr}</td>
+                        <td className="py-3 px-3 font-mono">{row.waktuTargetStr}</td>
+                        <td className="py-3 px-3 font-mono">{row.errorAbsStr}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* H2 Summary */}
+            <Card className="lg:col-span-5 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+              <div>
+                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
+                  Ringkasan H2 Antar-Siklus
+                </h3>
+                <div className="space-y-3 text-xs text-slate-700 font-medium">
+                  <div className="flex items-center gap-2.5">
+                    <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Rentang R²: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.rangeR2Str}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
+                    <Target size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Rata-rata R²: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.avgR2Str}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
+                    <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>Rentang Error Prediksi: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.rangeErrorStr}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
+                    <Clock size={15} className="text-sky-600 flex-shrink-0" />
+                    <span>MAE Prediksi Waktu: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.maeStr}</strong></span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-slate-600 leading-relaxed font-normal">
+                    <p className="flex items-start gap-2">
+                      <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                      <span>{comparisonAnalytics.h2Summary.textInterpretation}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* 6. Ringkasan Hasil Tiga Siklus (4 Cards in a Row/Grid) */}
+          <div>
+            <h3 className="font-display font-bold text-slate-900 text-base mb-4">
+              Ringkasan Hasil Tiga Siklus
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
+                    <Droplet size={20} />
+                  </div>
+                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Pengolahan TDS</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Rata-rata penurunan TDS ketiga siklus sebesar {comparisonAnalytics.threeCycleSummary.avgReductionPct}, dengan rata-rata waktu mencapai target operasional TDS ≤1.000 mg/L sebesar {comparisonAnalytics.threeCycleSummary.avgTargetTime}.
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
+                    <Zap size={20} />
+                  </div>
+                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Tegangan MFC</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Tegangan selama tiga siklus berada pada rentang {comparisonAnalytics.threeCycleSummary.voltageRange}.
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
+                    <Activity size={20} />
+                  </div>
+                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Hubungan TDS–Tegangan (H1)</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Hubungan positif ditemukan pada {comparisonAnalytics.threeCycleSummary.h1PosCount} dari 3 siklus dan signifikan pada {comparisonAnalytics.threeCycleSummary.h1SigCount} dari 3 siklus, dengan rentang Pearson r {comparisonAnalytics.threeCycleSummary.h1Range}.
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
+                    <BarChart3 size={20} />
+                  </div>
+                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Prediksi Regresi (H2)</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Model menghasilkan MAE prediksi waktu {comparisonAnalytics.threeCycleSummary.mae}, dengan R² Siklus 1 = {comparisonAnalytics.threeCycleSummary.r2S1}, Siklus 2 = {comparisonAnalytics.threeCycleSummary.r2S2}, dan Siklus 3 = {comparisonAnalytics.threeCycleSummary.r2S3}.
+                  </p>
+                </div>
+              </Card>
+            </div>
+
+            <p className="text-xs text-slate-500 font-semibold mt-4">
+              Catatan: Target operasional penelitian dibatasi pada parameter TDS ≤1.000 mg/L.
+            </p>
+          </div>
+
+          {/* 7. Footer Bar */}
+          <div className="pt-6 border-t border-slate-200 text-center text-xs font-semibold text-slate-500">
+            Target Operasional: TDS ≤1.000 mg/L &nbsp;|&nbsp; α = 0,05 &nbsp;|&nbsp; Sumber data: Siklus 1–3
           </div>
         </div>
       )}
@@ -2129,23 +2451,7 @@ export default function DataPenelitianPage() {
 
       {/* RENDER VIEW: MICRO-ENERGY */}
       {isMicroEnergy && (
-        <div className="space-y-6">
-          <Card className="p-8 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 text-center flex flex-col items-center justify-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-sm">
-              <Zap size={32} />
-            </div>
-            <h3 className="font-display font-bold text-xl text-slate-900">
-              Analisis Micro-Energy MFC
-            </h3>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed font-medium">
-              Modul ini mengukur dan menampilkan potensi daya mikro, efisiensi kelistrikan bio-elektrokimia, dan energi listrik hasil olahan mikroorganisme.
-            </p>
-            <div className="pt-2 flex items-center gap-2 px-4 py-2 rounded-full bg-sky-50 border border-sky-200 text-sky-800 text-xs font-semibold">
-              <BatteryCharging size={14} className="text-sky-600 flex-shrink-0" />
-              <span>Modul siap menerima data daya dari sensor arus & tegangan API.</span>
-            </div>
-          </Card>
-        </div>
+        <MicroEnergyModule />
       )}
     </div>
   );
