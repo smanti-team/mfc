@@ -500,7 +500,19 @@ export default function DataPenelitianPage() {
 
   // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1 (Zero dummy data)
   const siklus1Readings: CycleReading[] = useMemo(() => {
-    return convertHistoryToCycleReadings(summary.history);
+    // Sort chronologically
+    const sorted = [...summary.history].sort(
+      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
+    );
+
+    // Deduplicate anomalies (e.g., spam from hardware) where multiple points share the same HH:MM
+    const uniqueByTime = new Map<string, Reading>();
+    sorted.forEach((item) => {
+      uniqueByTime.set(formatTime(item.timestamp), item);
+    });
+
+    const deduplicated = Array.from(uniqueByTime.values());
+    return convertHistoryToCycleReadings(deduplicated);
   }, [summary.history]);
 
   const cycleDataMap: Record<string, SingleCycleConfig> = useMemo(() => {
