@@ -201,7 +201,7 @@ export default function RiwayatPage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-sm">
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
           Perhatian: Gagal terhubung API ({error}). Menggunakan fallback data riwayat.
         </div>
       )}
@@ -413,27 +413,27 @@ export default function RiwayatPage() {
                 <AreaChart data={chartData} margin={{ top: 30, right: 20, left: 10, bottom: 40 }}>
                   <defs>
                     <linearGradient id="colorTdsRiwayat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4ADE94" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#4ADE94" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#0284C7" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#0284C7" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#22403A" vertical={false} />
-                  <XAxis dataKey="name" stroke="#8FADA3" fontSize={10} tickLine={false} axisLine={false} angle={-45} textAnchor="end" tickMargin={10} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} axisLine={false} angle={-45} textAnchor="end" tickMargin={10} />
                   <YAxis 
-                    stroke="#8FADA3" 
+                    stroke="#64748B" 
                     fontSize={10} 
                     tickLine={false} 
                     axisLine={false} 
-                    label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#8FADA3', fontSize: 10 }} 
+                    label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#64748B', fontSize: 10 }} 
                     domain={[0, 'auto']} 
                     tickFormatter={(v) => `${typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v}%`}
                   />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0B1A17', borderColor: '#22403A', color: '#E7F2ED', fontSize: 12, borderRadius: '8px' }}
-                    itemStyle={{ color: '#4ADE94' }}
+                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#0F172A', fontSize: 12, borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    itemStyle={{ color: '#0284C7' }}
                     formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(2).replace('.', ',') : value}%`, 'Penurunan']}
                   />
-                  <Area type="monotone" dataKey="penurunan" name="Penurunan (%)" stroke="#4ADE94" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTdsRiwayat)" dot={{ fill: '#0B1A17', stroke: '#4ADE94', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#4ADE94' }} />
+                  <Area type="monotone" dataKey="penurunan" name="Penurunan (%)" stroke="#0284C7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTdsRiwayat)" dot={{ fill: '#FFFFFF', stroke: '#0284C7', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#0284C7' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
