@@ -744,16 +744,15 @@ export default function DataPenelitianPage() {
   }, [scatterData]);
 
   const minScatterX = useMemo(() => {
-    if (sortedScatterData.length === 0) return -5;
+    if (sortedScatterData.length === 0) return 0;
     const min = Math.min(...sortedScatterData.map((d) => d.x));
-    return Math.min(-5, Math.floor(min - 2));
+    return Math.floor(min - 1);
   }, [sortedScatterData]);
 
   const maxScatterX = useMemo(() => {
-    if (sortedScatterData.length === 0) return 20;
+    if (sortedScatterData.length === 0) return 10;
     const max = Math.max(...sortedScatterData.map((d) => d.x));
-    const pad = Math.ceil(max + 4);
-    return Math.max(15, Math.ceil(pad / 5) * 5);
+    return Math.ceil(max + 1);
   }, [sortedScatterData]);
 
   // Linear Trend Line Data for Scatter Plot (% Penurunan TDS -> Tegangan V)
@@ -762,6 +761,7 @@ export default function DataPenelitianPage() {
 
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
     const n = scatterData.length;
+    let minX = scatterData[0].x;
     let maxX = scatterData[0].x;
 
     for (const p of scatterData) {
@@ -769,6 +769,7 @@ export default function DataPenelitianPage() {
       sumY += p.y;
       sumXY += p.x * p.y;
       sumX2 += p.x * p.x;
+      if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
     }
 
@@ -778,8 +779,8 @@ export default function DataPenelitianPage() {
     const slope = (n * sumXY - sumX * sumY) / denom;
     const intercept = (sumY - slope * sumX) / n;
 
-    const startX = 0;
-    const endX = Math.ceil(maxX * 1.15);
+    const startX = Math.floor(minX - 1);
+    const endX = Math.ceil(maxX + 1);
 
     return [
       { x: startX, y: Number((slope * startX + intercept).toFixed(3)) },
@@ -1668,10 +1669,9 @@ export default function DataPenelitianPage() {
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
-                      domain={[0, 0.75]}
-                      ticks={[0.00, 0.15, 0.30, 0.45, 0.60, 0.75]}
-                      tickFormatter={(v) => v.toFixed(2).replace('.', ',')}
-                      width={40}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(v) => v.toFixed(3).replace('.', ',')}
+                      width={45}
                     />
                     <ZAxis type="number" range={[100, 100]} />
                     <Tooltip
