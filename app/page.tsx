@@ -93,20 +93,9 @@ export default function Home() {
     load();
   }, [load]);
 
-  // Fallback 4 commissioning records matching Pra-Siklus dataset
-  const fallbackHistory: Reading[] = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    return [
-      { timestamp: now - 3600, tds: 956.84, voltage: 0.23 },
-      { timestamp: now - 2700, tds: 1061.76, voltage: 0.24 },
-      { timestamp: now - 1800, tds: 956.79, voltage: 0.23 },
-      { timestamp: now - 300,  tds: 1068.89, voltage: 0.20 },
-    ];
-  }, []);
-
   // Sorted active telemetry history (with deduplication by minute)
   const sortedHistory = useMemo(() => {
-    const rawList = (summary.history && summary.history.length > 0) ? summary.history : fallbackHistory;
+    const rawList = summary.history || [];
     
     // Sort chronologically
     const sorted = [...rawList].sort(
@@ -120,14 +109,14 @@ export default function Home() {
     });
 
     return Array.from(uniqueByTime.values());
-  }, [summary.history, fallbackHistory]);
+  }, [summary.history]);
 
   // Latest reading from API
-  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : fallbackHistory[fallbackHistory.length - 1]);
-  const latestTds = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : 1068.89;
+  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : null);
+  const latestTds = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : null;
   
   const latestVoltageVal = useMemo(() => {
-    if (latestReading?.voltage == null) return 0.20;
+    if (latestReading?.voltage == null) return null;
     const v = latestReading.voltage;
     return v <= 20 ? Number(v.toFixed(2)) : Number((v / 1000).toFixed(2));
   }, [latestReading]);
@@ -217,7 +206,7 @@ export default function Home() {
       {error && (
         <div className="mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-sm shadow-sm backdrop-blur-md flex items-center gap-3">
           <FlaskConical className="text-amber-600 flex-shrink-0" size={18} />
-          <span>Perhatian: {error}. Menggunakan fallback data simulasi.</span>
+          <span>Perhatian: {error}. Menunggu data masuk.</span>
         </div>
       )}
 
@@ -232,7 +221,7 @@ export default function Home() {
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-4xl lg:text-5xl leading-tight font-bold text-sky-600 tracking-tight">
-                {isLoading ? "..." : latestTds.toLocaleString('id-ID')}
+                {isLoading ? "..." : (latestTds !== null ? latestTds.toLocaleString('id-ID') : "--")}
               </span>
               <span className="text-slate-500 text-lg font-medium tracking-wide">mg/L</span>
             </div>
@@ -249,7 +238,7 @@ export default function Home() {
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-4xl lg:text-5xl leading-tight font-bold text-sky-600 tracking-tight">
-                {isLoading ? "..." : latestVoltageVal.toFixed(2).replace('.', ',')}
+                {isLoading ? "..." : (latestVoltageVal !== null ? latestVoltageVal.toFixed(2).replace('.', ',') : "--")}
               </span>
               <span className="text-slate-500 text-lg font-medium tracking-wide">V</span>
             </div>
