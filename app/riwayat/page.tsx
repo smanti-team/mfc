@@ -46,6 +46,27 @@ interface BatchRecord {
   isUji?: boolean;
 }
 
+const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) => {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.substring(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return (
+    <span className="inline-flex items-center">
+      {displayedText}
+      <span className="w-[3px] h-[0.9em] bg-sky-500 ml-1.5 md:ml-2 animate-[pulse_0.8s_ease-in-out_infinite] rounded-sm" />
+    </span>
+  );
+};
+
 export default function RiwayatPage() {
   const [summary, setSummary] = useState<Summary>({ latest: null, history: [] });
   const [error, setError] = useState<string | null>(null);
@@ -190,7 +211,7 @@ export default function RiwayatPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <p className="text-signal text-xs sm:text-sm font-medium mb-1">Selamat datang di</p>
-          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-fog">Riwayat Pengolahan</h1>
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-fog"><TypewriterText text="Riwayat Pengolahan" /></h1>
           <p className="text-muted text-xs sm:text-sm mt-1.5 sm:mt-2 leading-relaxed">Riwayat batch pengolahan limbah cair organik yang dipantau secara real-time dari D1 API.</p>
         </div>
         <div className="self-start md:self-auto flex-shrink-0">

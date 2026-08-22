@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Card from "@/components/Card";
 import MagneticCard from "@/components/MagneticCard";
@@ -8,6 +8,27 @@ import {
   Activity, Beaker, TrendingUp, BarChart3, Users,
   Wrench, CircleDot, Pipette, Server, LayoutDashboard
 } from "lucide-react";
+
+const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) => {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.substring(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return (
+    <span className="inline-flex items-center">
+      {displayedText}
+      <span className="w-[3px] h-[0.9em] bg-sky-500 ml-1.5 md:ml-2 animate-[pulse_0.8s_ease-in-out_infinite] rounded-sm" />
+    </span>
+  );
+};
 
 export default function TentangPage() {
   return (
@@ -22,7 +43,7 @@ export default function TentangPage() {
             Tentang Proyek
           </p>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
-            Tentang SMART-MFC
+            <TypewriterText text="Tentang SMART-MFC" />
           </h1>
           <h2 className="text-base sm:text-lg text-sky-700 font-semibold mb-4 sm:mb-5 leading-relaxed">
             SMART-MFC (Eco-Filter &amp; Micro-Energy)
