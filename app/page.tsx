@@ -93,7 +93,7 @@ export default function Home() {
     load();
   }, [load]);
 
-  // Sorted active telemetry history (with deduplication by minute)
+  // Sorted active telemetry history (with deduplication by minute per day)
   const sortedHistory = useMemo(() => {
     const rawList = summary.history || [];
 
@@ -102,17 +102,19 @@ export default function Home() {
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
 
-    // Deduplicate anomalies (e.g., spam from hardware) where multiple points share the same HH:MM
+    // Deduplicate anomalies (e.g., spam from hardware) where multiple points share the same Minute & Day
     const uniqueByTime = new Map<string, Reading>();
     sorted.forEach((item) => {
-      uniqueByTime.set(formatTime(item.timestamp), item);
+      // Use full date AND time string (e.g., "22 Agu 2026, 07.41") for unique key
+      // This prevents data from different days with the same time from overwriting each other
+      uniqueByTime.set(formatFullDateTime(item.timestamp), item);
     });
 
     return Array.from(uniqueByTime.values());
   }, [summary.history]);
 
-  // Latest reading from API
-  const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : null);
+  // ALWAYS use the latest reading from our sorted history so the graph and the top cards match exactly!
+  const latestReading = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : summary.latest;
   const latestTds = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : null;
 
   const latestVoltageVal = useMemo(() => {
