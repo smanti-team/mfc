@@ -438,6 +438,27 @@ const RenderScatterDotWithLabel = (props: any) => {
   );
 };
 
+const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) => {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.substring(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return (
+    <span className="inline-flex items-center">
+      {displayedText}
+      <span className="w-[3px] h-[0.9em] bg-sky-500 ml-1.5 md:ml-2 animate-[pulse_0.8s_ease-in-out_infinite] rounded-sm" />
+    </span>
+  );
+};
+
 export default function DataPenelitianPage() {
   const [activeTab, setActiveTab] = useState<string>("Siklus 1");
   const tabs = ["Pra-Siklus", "Siklus 1", "Siklus 2", "Siklus 3", "Perbandingan Siklus", "Micro-Energy"];
@@ -1230,7 +1251,7 @@ export default function DataPenelitianPage() {
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">
-            Data Penelitian
+            <TypewriterText text="Data Penelitian" />
           </h1>
           <p className="text-slate-600 text-xs sm:text-sm mt-1.5 sm:mt-2 font-medium leading-relaxed">
             {isPraSiklus
