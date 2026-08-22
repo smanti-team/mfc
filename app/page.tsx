@@ -6,8 +6,8 @@ import { calculateTdsRegression, convertHistoryToCycleReadings } from "@/lib/reg
 import MagneticCard from "@/components/MagneticCard";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
-import { 
-  Activity, Zap, Hourglass, Calendar, RefreshCcw, Wifi, BatteryCharging, 
+import {
+  Activity, Zap, Hourglass, Calendar, RefreshCcw, Wifi, BatteryCharging,
   FlaskConical, Droplet, Monitor, Target, SunDim, TrendingDown
 } from "lucide-react";
 import {
@@ -30,11 +30,11 @@ function formatTime(ts: string | number) {
 
 function formatFullDateTime(ts: string | number) {
   const date = parseTimestamp(ts);
-  return date.toLocaleString('id-ID', { 
-    day: '2-digit', 
-    month: 'short', 
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
     year: 'numeric',
-    hour: '2-digit', 
+    hour: '2-digit',
     minute: '2-digit'
   });
 }
@@ -96,7 +96,7 @@ export default function Home() {
   // Sorted active telemetry history (with deduplication by minute)
   const sortedHistory = useMemo(() => {
     const rawList = summary.history || [];
-    
+
     // Sort chronologically
     const sorted = [...rawList].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
@@ -114,7 +114,7 @@ export default function Home() {
   // Latest reading from API
   const latestReading = summary.latest || (sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1] : null);
   const latestTds = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : null;
-  
+
   const latestVoltageVal = useMemo(() => {
     if (latestReading?.voltage == null) return null;
     const v = latestReading.voltage;
@@ -254,13 +254,12 @@ export default function Home() {
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-baseline gap-2">
-              <span className={`font-display font-bold text-sky-600 tracking-tight leading-tight ${
-                remainingTimeString.length > 18
-                  ? "text-lg lg:text-xl"
-                  : remainingTimeString.length > 12
+              <span className={`font-display font-bold text-sky-600 tracking-tight leading-tight ${remainingTimeString.length > 18
+                ? "text-lg lg:text-xl"
+                : remainingTimeString.length > 12
                   ? "text-xl lg:text-2xl"
                   : "text-3xl lg:text-4xl"
-              }`}>
+                }`}>
                 {isLoading ? "..." : remainingTimeString}
               </span>
             </div>
@@ -359,14 +358,14 @@ export default function Home() {
               <AreaChart data={tdsChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorTds" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0284C7" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02}/>
+                    <stop offset="0%" stopColor="#0284C7" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                 <XAxis dataKey="time" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={15} padding={{ left: 20, right: 20 }} />
                 <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} domain={[600, 1500]} ticks={[600, 750, 900, 1050, 1200, 1350, 1500]} />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
@@ -390,16 +389,16 @@ export default function Home() {
                   }}
                 />
                 <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" strokeOpacity={0.9} label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideTopRight" }} />
-                <Area 
-                  type="linear" 
-                  dataKey="tds" 
-                  name="TDS (mg/L)" 
-                  stroke="#0284C7" 
-                  strokeWidth={2.5} 
-                  fillOpacity={1} 
-                  fill="url(#colorTds)" 
-                  dot={<RenderTdsDot />} 
-                  activeDot={<RenderTdsActiveDot />} 
+                <Area
+                  type="linear"
+                  dataKey="tds"
+                  name="TDS (mg/L)"
+                  stroke="#0284C7"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorTds)"
+                  dot={<RenderTdsDot />}
+                  activeDot={<RenderTdsActiveDot />}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -435,14 +434,14 @@ export default function Home() {
               <AreaChart data={voltageChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorVolt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#16A34A" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#16A34A" stopOpacity={0.02}/>
+                    <stop offset="0%" stopColor="#16A34A" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#16A34A" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                 <XAxis dataKey="time" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickMargin={10} minTickGap={15} padding={{ left: 20, right: 20 }} />
                 <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickCount={6} domain={[0, 0.7]} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
@@ -460,16 +459,16 @@ export default function Home() {
                     return null;
                   }}
                 />
-                <Area 
-                  type="linear" 
-                  dataKey="voltage" 
-                  name="Tegangan (V)" 
-                  stroke="#16A34A" 
-                  strokeWidth={2.5} 
-                  fillOpacity={1} 
-                  fill="url(#colorVolt)" 
-                  dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }} 
-                  activeDot={{ r: 6, fill: '#16A34A' }} 
+                <Area
+                  type="linear"
+                  dataKey="voltage"
+                  name="Tegangan (V)"
+                  stroke="#16A34A"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorVolt)"
+                  dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: '#16A34A' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -490,7 +489,7 @@ export default function Home() {
             <Target className="text-sky-600" size={20} />
             <h3 className="font-display font-semibold text-slate-900 text-lg">Cara Kerja Prediksi Slope SMART-MFC</h3>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
@@ -502,7 +501,7 @@ export default function Home() {
                 <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Sistem membaca titik data real-time {activeBatchName} dari database Cloud Gateway API.</p>
               </div>
             </div>
-            
+
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
                 <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">2</div>
@@ -513,7 +512,7 @@ export default function Home() {
                 <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Kemiringan penurunan TDS dihitung menggunakan regresi linier metode least squares.</p>
               </div>
             </div>
-            
+
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
                 <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">3</div>
@@ -524,7 +523,7 @@ export default function Home() {
                 <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik TDS.</p>
               </div>
             </div>
-            
+
             <div className="flex flex-row gap-4">
               <div className="flex flex-col items-center flex-shrink-0">
                 <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">4</div>
@@ -543,7 +542,7 @@ export default function Home() {
             <Target className="text-sky-600" size={20} />
             <h3 className="font-display font-semibold text-slate-900 text-lg">Target Operasional UMKM</h3>
           </div>
-          
+
           <div className="space-y-6 relative z-10">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Target TDS Operasional</p>
@@ -563,7 +562,7 @@ export default function Home() {
                 {regressionResult.slopePerStepStr}
               </h4>
             </div>
-            
+
             <div className="pt-2 border-t border-slate-200">
               <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Live API Endpoint</p>
               <p className="text-[10px] text-sky-600 font-mono font-bold truncate">MFC-D1 Cloud Gateway</p>
