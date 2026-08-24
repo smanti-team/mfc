@@ -519,8 +519,57 @@ export default function DataPenelitianPage() {
     );
   }, [hardcodedPraSiklus]);
 
-  // Dynamic Siklus 1 readings: ALL incoming API telemetry readings go 100% directly to Siklus 1 (Zero dummy data)
+  // Hardcoded Siklus 1 from PDF
   const siklus1Readings: CycleReading[] = useMemo(() => {
+    return [
+      { hour: 0, actualTime: "19/08 15.00", tds: 1183.68, voltage: 0.537, status: "RAW" },
+      { hour: 3, actualTime: "19/08 18.00", tds: 1182.54, voltage: 0.539, status: "Perkiraan" },
+      { hour: 6, actualTime: "19/08 21.00", tds: 1181.40, voltage: 0.541, status: "RAW" },
+      { hour: 9, actualTime: "20/08 00.00", tds: 1180.09, voltage: 0.544, status: "RAW" },
+      { hour: 12, actualTime: "20/08 03.00", tds: 1177.17, voltage: 0.547, status: "RAW" },
+      { hour: 15, actualTime: "20/08 06.00", tds: 1174.23, voltage: 0.550, status: "RAW" },
+      { hour: 18, actualTime: "20/08 09.00", tds: 1118.15, voltage: 0.552, status: "RAW" },
+      { hour: 21, actualTime: "20/08 12.00", tds: 1197.28, voltage: 0.555, status: "RAW" },
+      { hour: 24, actualTime: "20/08 15.00", tds: 1197.30, voltage: 0.557, status: "RAW" },
+      { hour: 27, actualTime: "20/08 18.00", tds: 1170.79, voltage: 0.560, status: "RAW" },
+      { hour: 30, actualTime: "20/08 21.00", tds: 1191.14, voltage: 0.562, status: "RAW" },
+      { hour: 33, actualTime: "21/08 00.00", tds: 1191.97, voltage: 0.565, status: "RAW" },
+      { hour: 36, actualTime: "21/08 03.00", tds: 1190.90, voltage: 0.568, status: "RAW" },
+      { hour: 39, actualTime: "21/08 06.00", tds: 1190.46, voltage: 0.570, status: "RAW" },
+      { hour: 42, actualTime: "21/08 09.00", tds: 1188.12, voltage: 0.572, status: "RAW terdekat" },
+      { hour: 45, actualTime: "21/08 12.00", tds: 1185.13, voltage: 0.575, status: "RAW terdekat" },
+      { hour: 48, actualTime: "21/08 15.00", tds: 1192.00, voltage: 0.578, status: "Perkiraan" },
+      { hour: 51, actualTime: "21/08 18.00", tds: 1198.00, voltage: 0.581, status: "Perkiraan" },
+      { hour: 54, actualTime: "21/08 21.00", tds: 1204.00, voltage: 0.584, status: "Perkiraan" },
+      { hour: 57, actualTime: "22/08 00.00", tds: 1210.00, voltage: 0.587, status: "Perkiraan" },
+      { hour: 60, actualTime: "22/08 03.00", tds: 1216.00, voltage: 0.590, status: "Perkiraan" },
+      { hour: 63, actualTime: "22/08 06.00", tds: 1221.00, voltage: 0.593, status: "Perkiraan" },
+      { hour: 66, actualTime: "22/08 09.00", tds: 1226.00, voltage: 0.596, status: "Perkiraan" },
+      { hour: 69, actualTime: "22/08 12.00", tds: 1231.00, voltage: 0.599, status: "Perkiraan" },
+      { hour: 72, actualTime: "22/08 15.00", tds: 1235.00, voltage: 0.602, status: "Perkiraan" },
+      { hour: 75, actualTime: "22/08 18.00", tds: 1238.00, voltage: 0.605, status: "Perkiraan" },
+      { hour: 78, actualTime: "22/08 21.00", tds: 1241.00, voltage: 0.608, status: "Perkiraan" },
+      { hour: 81, actualTime: "23/08 00.00", tds: 1243.00, voltage: 0.611, status: "Perkiraan" },
+      { hour: 84, actualTime: "23/08 03.00", tds: 1245.00, voltage: 0.614, status: "Perkiraan - puncak" },
+      { hour: 87, actualTime: "23/08 06.00", tds: 1242.00, voltage: 0.612, status: "Perkiraan" },
+      { hour: 90, actualTime: "23/08 09.00", tds: 1238.00, voltage: 0.610, status: "Perkiraan" },
+      { hour: 93, actualTime: "23/08 12.00", tds: 1234.00, voltage: 0.608, status: "Perkiraan" },
+      { hour: 96, actualTime: "23/08 15.00", tds: 1231.00, voltage: 0.606, status: "Perkiraan" },
+      { hour: 99, actualTime: "23/08 18.00", tds: 1228.00, voltage: 0.604, status: "Perkiraan" },
+      { hour: 102, actualTime: "23/08 21.00", tds: 1230.00, voltage: 0.602, status: "Perkiraan" },
+      { hour: 105, actualTime: "24/08 00.00", tds: 1233.00, voltage: 0.600, status: "Perkiraan" },
+      { hour: 108, actualTime: "24/08 03.00", tds: 1237.00, voltage: 0.598, status: "Perkiraan" },
+      { hour: 111, actualTime: "24/08 06.00", tds: 1241.00, voltage: 0.596, status: "Perkiraan" },
+      { hour: 114, actualTime: "24/08 09.00", tds: 1245.00, voltage: 0.594, status: "Perkiraan" },
+      { hour: 117, actualTime: "24/08 12.00", tds: 1232.00, voltage: 0.592, status: "Perkiraan" },
+      { hour: 120, actualTime: "24/08 15.00", tds: 1218.00, voltage: 0.590, status: "Perkiraan" },
+    ];
+  }, []);
+
+  // Dynamic Siklus 2 readings: ALL incoming API telemetry readings go 100% directly to Siklus 2
+  const siklus2Readings: CycleReading[] = useMemo(() => {
+    if (!summary.history || summary.history.length === 0) return [];
+
     // Sort chronologically
     const sorted = [...summary.history].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
@@ -546,7 +595,7 @@ export default function DataPenelitianPage() {
       "Siklus 2": {
         id: "Siklus 2",
         name: "Siklus 2",
-        readings: [],
+        readings: siklus2Readings,
       },
       "Siklus 3": {
         id: "Siklus 3",
@@ -554,7 +603,7 @@ export default function DataPenelitianPage() {
         readings: [],
       },
     };
-  }, [siklus1Readings]);
+  }, [siklus1Readings, siklus2Readings]);
 
   const summaryMatrix = useMemo(() => {
     const s1 = cycleDataMap["Siklus 1"]?.readings || [];
