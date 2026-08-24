@@ -6,7 +6,7 @@ import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { fetchSummary } from "@/lib/api";
 import type { Summary, Reading } from "@/lib/types";
-import { 
+import {
   Database, CheckCircle2, RefreshCcw, Clock, ArrowDownRight, ArrowUpRight,
   Activity, CalendarDays, ChevronLeft, ChevronRight, FlaskConical, Wifi
 } from "lucide-react";
@@ -25,11 +25,11 @@ function parseTimestamp(ts: string | number): Date {
 
 function formatFullDateTime(ts: string | number) {
   const date = parseTimestamp(ts);
-  return date.toLocaleString('id-ID', { 
-    day: '2-digit', 
-    month: 'short', 
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
     year: 'numeric',
-    hour: '2-digit', 
+    hour: '2-digit',
     minute: '2-digit'
   });
 }
@@ -302,7 +302,7 @@ export default function RiwayatPage() {
             <CalendarDays className="text-signal" size={18} />
             <h3 className="font-display font-medium text-fog">Riwayat Batch Terbaru (Data API)</h3>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-muted border-b border-line">
@@ -310,16 +310,16 @@ export default function RiwayatPage() {
                   <th className="pb-3 font-medium px-2">ID Batch</th>
                   <th className="pb-3 font-medium px-2">Mulai</th>
                   <th className="pb-3 font-medium px-2">Selesai</th>
-                  <th className="pb-3 font-medium px-2">TDS Awal <br/><span className="text-[10px]">(mg/L)</span></th>
-                  <th className="pb-3 font-medium px-2">TDS Akhir <br/><span className="text-[10px]">(mg/L)</span></th>
+                  <th className="pb-3 font-medium px-2">TDS Awal <br /><span className="text-[10px]">(mg/L)</span></th>
+                  <th className="pb-3 font-medium px-2">TDS Akhir <br /><span className="text-[10px]">(mg/L)</span></th>
                   <th className="pb-3 font-medium px-2">Durasi</th>
                   <th className="pb-3 font-medium px-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/50">
                 {batchList.map((row) => (
-                  <tr 
-                    key={row.id} 
+                  <tr
+                    key={row.id}
                     className={`cursor-pointer transition-colors ${selectedBatch?.id === row.id ? 'bg-signal/5 border border-signal/50 rounded-lg' : 'hover:bg-panel/80'}`}
                     onClick={() => setSelectedBatch(row)}
                   >
@@ -428,28 +428,28 @@ export default function RiwayatPage() {
               <Activity className="text-signal" size={18} />
               <h3 className="font-display font-medium text-fog">Penurunan TDS per Batch</h3>
             </div>
-            
+
             <div className="h-[320px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 30, right: 20, left: 10, bottom: 40 }}>
                   <defs>
                     <linearGradient id="colorTdsRiwayat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0284C7" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#0284C7" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#0284C7" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#0284C7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} axisLine={false} angle={-45} textAnchor="end" tickMargin={10} />
-                  <YAxis 
-                    stroke="#64748B" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#64748B', fontSize: 10 }} 
-                    domain={[0, 'auto']} 
+                  <YAxis
+                    stroke="#64748B"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    label={{ value: 'Penurunan (%)', position: 'top', offset: 15, fill: '#64748B', fontSize: 10 }}
+                    domain={[0, 'auto']}
                     tickFormatter={(v) => `${typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v}%`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', color: '#0F172A', fontSize: 12, borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     itemStyle={{ color: '#0284C7' }}
                     formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(2).replace('.', ',') : value}%`, 'Penurunan']}
