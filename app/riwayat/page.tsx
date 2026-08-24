@@ -94,10 +94,10 @@ export default function RiwayatPage() {
     const batch001: BatchRecord = {
       id: "Batch 001 — S1",
       start: "19 Agu 2026, 15.00",
-      end: "24 Agu 2026, 15.42",
+      end: "24 Agu 2026, 15.00",
       tdsStart: 1183.68,
-      tdsEnd: 925.45,
-      duration: "120 jam 43 mnt",
+      tdsEnd: 1218.00,
+      duration: "120 jam 00 mnt",
       status: "SELESAI",
       notes: "Siklus 1 (Data Historis Terkunci)",
       isUji: false,
@@ -130,23 +130,34 @@ export default function RiwayatPage() {
       const tdsStart = firstRecord.tds != null ? Number(firstRecord.tds.toFixed(2)) : 0;
       const tdsEnd = lastRecord.tds != null ? Number(lastRecord.tds.toFixed(2)) : 0;
 
-      const isComplete = tdsEnd > 0 && tdsEnd <= 1000;
-
       batch002 = {
         id: "Batch 002 — S2",
         start: formatFullDateTime(firstRecord.timestamp),
-        end: isComplete ? formatFullDateTime(lastRecord.timestamp) : "—",
+        end: "—", // Always running until explicitly finished
         tdsStart,
         tdsEnd,
         duration: durationStr === "0 mnt" ? "0 jam 00 mnt" : durationStr,
-        status: isComplete ? "SELESAI" : "BERJALAN",
+        status: "BERJALAN", // Forced to always be BERJALAN
+
         notes: "Siklus 2 (Live Telemetri Reaktor Utama)",
+        isUji: false,
+      };
+    } else {
+      batch002 = {
+        id: "Batch 002 — S2",
+        start: "—",
+        end: "—",
+        tdsStart: 0,
+        tdsEnd: 0,
+        duration: "—",
+        status: "BERJALAN",
+        notes: "Siklus 2 (Menunggu Telemetri Live ESP32)",
         isUji: false,
       };
     }
 
     // Display newer batch first
-    const displayBatches: BatchRecord[] = batch002 ? [batch002, batch001] : [batch001];
+    const displayBatches: BatchRecord[] = [batch002, batch001];
 
     // Chart data for TDS change (%)
     const chart = displayBatches.map((b) => {
