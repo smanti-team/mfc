@@ -88,14 +88,31 @@ export default function RiwayatPage() {
     loadData();
   }, [loadData]);
 
-  // Transform Siklus 1 live API telemetry into Batch 001 — S1 (Newer batch)
+  // Transform Siklus 1 into Hardcoded Batch 001, and Live API into Batch 002
   const { batchList, chartData, stats } = useMemo(() => {
-    const hasLiveApi = summary.history && summary.history.length > 0;
+    // HARDCODED Batch 001 - S1
+    const batch001: BatchRecord = {
+      id: "Batch 001 — S1",
+      start: "19 Agu 2026, 15.00",
+      end: "24 Agu 2026, 15.42",
+      tdsStart: 1183.68,
+      tdsEnd: 925.45,
+      duration: "120 jam 43 mnt",
+      status: "SELESAI",
+      notes: "Siklus 1 (Data Historis Terkunci)",
+      isUji: false,
+    };
 
-    let batch001: BatchRecord;
+    let batch002: BatchRecord | null = null;
+    
+    // Filter fresh data for Siklus 2 (after 24 Aug 15:01)
+    const cutoffTime = new Date("2026-08-24T15:01:00").getTime();
+    const freshData = summary.history ? summary.history.filter((item) => {
+      return parseTimestamp(item.timestamp).getTime() > cutoffTime;
+    }) : [];
 
-    if (hasLiveApi) {
-      const sorted = [...summary.history].sort(
+    if (freshData.length > 0) {
+      const sorted = [...freshData].sort(
         (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
       );
 
@@ -115,35 +132,23 @@ export default function RiwayatPage() {
 
       const isComplete = tdsEnd > 0 && tdsEnd <= 1000;
 
-      batch001 = {
-        id: "Batch 001 — S1",
+      batch002 = {
+        id: "Batch 002 — S2",
         start: formatFullDateTime(firstRecord.timestamp),
         end: isComplete ? formatFullDateTime(lastRecord.timestamp) : "—",
         tdsStart,
         tdsEnd,
         duration: durationStr === "0 mnt" ? "0 jam 00 mnt" : durationStr,
         status: isComplete ? "SELESAI" : "BERJALAN",
-        notes: "Siklus 1 (Live Telemetri Reaktor Utama)",
-        isUji: false,
-      };
-    } else {
-      batch001 = {
-        id: "Batch 001 — S1",
-        start: "—",
-        end: "—",
-        tdsStart: 0,
-        tdsEnd: 0,
-        duration: "—",
-        status: "BERJALAN",
-        notes: "Siklus 1 (Menunggu Telemetri Live ESP32)",
+        notes: "Siklus 2 (Live Telemetri Reaktor Utama)",
         isUji: false,
       };
     }
 
-    // Display ONLY official cycle batches (Siklus 1, Siklus 2, Siklus 3). Batch UJI removed per request.
-    const displayBatches: BatchRecord[] = [batch001];
+    // Display newer batch first
+    const displayBatches: BatchRecord[] = batch002 ? [batch002, batch001] : [batch001];
 
-    // Chart data for TDS change (%) - ONLY official cycles (Siklus 1-3)
+    // Chart data for TDS change (%)
     const chart = displayBatches.map((b) => {
       const diff = b.tdsStart - b.tdsEnd;
       const pct = (b.tdsStart > 0 && diff > 0) ? Number(((diff / b.tdsStart) * 100).toFixed(2)) : 0;
@@ -151,7 +156,7 @@ export default function RiwayatPage() {
         name: b.id,
         penurunan: pct,
       };
-    });
+    }).reverse(); // Reverse so older batches are on the left of chart
 
     const totalCount = displayBatches.length;
     const completedCount = displayBatches.filter((b) => b.status === "SELESAI").length;
