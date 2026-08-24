@@ -5,7 +5,7 @@ export interface CycleReading {
   actualTime: string;
   tds: number;
   voltage: number;
-  status: "VALID" | "PERLU VERIFIKASI" | "TIDAK TEREKAM";
+  status: string;
 }
 
 export interface RegressionResult {
