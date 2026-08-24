@@ -570,8 +570,17 @@ export default function DataPenelitianPage() {
   const siklus2Readings: CycleReading[] = useMemo(() => {
     if (!summary.history || summary.history.length === 0) return [];
 
+    // Filter out data that already belongs to Siklus 1 (before 24 Aug 2026 15:01)
+    // This ensures Siklus 2 starts completely fresh from 0.
+    const cutoffTime = new Date("2026-08-24T15:01:00").getTime();
+    const freshData = summary.history.filter((item) => {
+      return parseTimestamp(item.timestamp).getTime() > cutoffTime;
+    });
+
+    if (freshData.length === 0) return [];
+
     // Sort chronologically
-    const sorted = [...summary.history].sort(
+    const sorted = [...freshData].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
 
