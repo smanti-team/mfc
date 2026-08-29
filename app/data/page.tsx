@@ -808,16 +808,12 @@ export default function DataPenelitianPage() {
 
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
     const n = scatterData.length;
-    let minX = scatterData[0].x;
-    let maxX = scatterData[0].x;
 
     for (const p of scatterData) {
       sumX += p.x;
       sumY += p.y;
       sumXY += p.x * p.y;
       sumX2 += p.x * p.x;
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
     }
 
     const denom = n * sumX2 - sumX * sumX;
@@ -826,14 +822,14 @@ export default function DataPenelitianPage() {
     const slope = (n * sumXY - sumX * sumY) / denom;
     const intercept = (sumY - slope * sumX) / n;
 
-    const startX = Math.floor(minX - 1);
-    const endX = Math.ceil(maxX + 1);
+    const startX = minScatterX;
+    const endX = maxScatterX;
 
     return [
-      { x: startX, y: Number((slope * startX + intercept).toFixed(3)) },
-      { x: endX, y: Number((slope * endX + intercept).toFixed(3)) },
+      { x: startX, y: Number((slope * startX + intercept).toFixed(4)), isTrendline: true },
+      { x: endX, y: Number((slope * endX + intercept).toFixed(4)), isTrendline: true },
     ];
-  }, [scatterData]);
+  }, [scatterData, minScatterX, maxScatterX]);
 
   // Dynamic Comparison Chart Data
   const comparisonChartData = useMemo(() => {
@@ -1779,6 +1775,7 @@ export default function DataPenelitianPage() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
+                          if (data.isTrendline) return null;
                           return (
                             <div className="bg-slate-900/95 text-white p-2.5 border border-slate-700 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md">
                               <p className="text-sky-400 font-mono font-bold">
@@ -1793,19 +1790,34 @@ export default function DataPenelitianPage() {
                         return null;
                       }}
                     />
+                    {/* Telemetry Scatter Points (Green Dots) */}
                     <Scatter
-                      name="Data Telemetri"
+                      name="Titik Data"
                       data={sortedScatterData}
                       fill="#16A34A"
-                      line={{ stroke: '#0284C7', strokeWidth: 1.5, strokeDasharray: '4 4' }}
+                      line={false}
                       shape={<RenderScatterDotWithLabel />}
+                    />
+                    {/* Linear Regression Line (Straight Blue Dashed Line) */}
+                    <Scatter
+                      name="Regresi Linear"
+                      data={trendlineData}
+                      line={{ stroke: '#0284C7', strokeWidth: 2, strokeDasharray: '6 6' }}
+                      shape={() => <g />}
+                      legendType="none"
                     />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex items-center justify-center gap-2 mt-2 text-xs font-semibold text-slate-700">
-                <span className="w-8 border-b-2 border-dashed border-sky-600"></span>
-                <span>Garis tren linear</span>
+              <div className="flex items-center justify-center gap-6 mt-2 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-[#16A34A]"></span>
+                  <span>Titik data telemetri</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 border-b-2 border-dashed border-[#0284C7]"></span>
+                  <span>Garis regresi linear</span>
+                </div>
               </div>
             </Card>
 
