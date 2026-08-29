@@ -1133,20 +1133,42 @@ export default function DataPenelitianPage() {
 
     const continuousVoltageData: { cumHour: number; voltage: number; cycle: string }[] = [];
     let offsetHour = 0;
+    let s2StartHour = 0;
+    let s3StartHour = 0;
 
-    cycles.forEach((c) => {
-      if (c.readings.length > 0) {
-        c.readings.forEach((r) => {
-          continuousVoltageData.push({
-            cumHour: offsetHour + r.hour,
-            voltage: r.voltage,
-            cycle: c.id,
-          });
+    if (s1.length > 0) {
+      s1.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 1",
         });
-        const lastHour = c.readings[c.readings.length - 1].hour;
-        offsetHour += lastHour;
-      }
-    });
+      });
+      offsetHour = s1[s1.length - 1].hour;
+      s2StartHour = offsetHour;
+    }
+
+    if (s2.length > 0) {
+      s2.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: offsetHour + r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 2",
+        });
+      });
+      offsetHour += s2[s2.length - 1].hour;
+      s3StartHour = offsetHour;
+    }
+
+    if (s3.length > 0) {
+      s3.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: offsetHour + r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 3",
+        });
+      });
+    }
 
     const positiveCount = activeAnalyzed.filter((c) => c.pearsonR != null && c.pearsonR > 0).length;
     const sigCount = activeAnalyzed.filter((c) => c.pValue != null && c.pValue < 0.05).length;
@@ -1189,6 +1211,8 @@ export default function DataPenelitianPage() {
       },
       tdsReductionChartData,
       continuousVoltageData,
+      s2StartHour,
+      s3StartHour,
       h1Summary: {
         positiveCount,
         sigCount,
@@ -1954,14 +1978,36 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 45, left: 10, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 25, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0, 20]} ticks={[0, 4, 8, 12, 16, 20]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={35} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${val}%`, 'Penurunan TDS']} />
-                    <Line type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
-                    <Line type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', r: 3.5 }} />
-                    <Line type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', r: 3.5 }} />
+                  <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 35, left: 10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={20} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold border-b border-slate-100 pb-1">Jam ke-{label}</p>
+                              {payload.map((entry: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-4">
+                                  <span className="flex items-center gap-1.5 font-medium" style={{ color: entry.color }}>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                                    {entry.name}:
+                                  </span>
+                                  <span className="font-mono font-bold" style={{ color: entry.color }}>
+                                    {entry.value != null ? `${entry.value}%` : "—"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line connectNulls={true} type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1979,15 +2025,42 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0.45, 0.65]} ticks={[0.45, 0.50, 0.55, 0.60, 0.65]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${typeof val === 'number' ? val.toFixed(3).replace('.', ',') : val} V`, 'Tegangan']} />
-                    <ReferenceLine x={60} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    <ReferenceLine x={117} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    <Line type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
-                  </LineChart>
+                  <AreaChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="colorVoltContinuous" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0284C7" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={25} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold">Jam Kumulatif: {data.cumHour} ({data.cycle || "Siklus"})</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sky-700 font-bold">
+                                  Tegangan: {typeof data.voltage === 'number' ? data.voltage.toFixed(3).replace('.', ',') : data.voltage} V
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    {comparisonAnalytics.s2StartHour > 0 && (
+                      <ReferenceLine x={comparisonAnalytics.s2StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    )}
+                    {comparisonAnalytics.s3StartHour > 0 && (
+                      <ReferenceLine x={comparisonAnalytics.s3StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    )}
+                    <Area type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVoltContinuous)" dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3.5 }} activeDot={{ r: 6, fill: "#0284C7" }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </Card>

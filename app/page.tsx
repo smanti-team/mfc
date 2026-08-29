@@ -8,7 +8,7 @@ import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import {
   Activity, Zap, Hourglass, Calendar, RefreshCcw, Wifi, BatteryCharging,
-  FlaskConical, Droplet, Monitor, Target, SunDim, TrendingDown
+  FlaskConical, Droplet, Monitor, Target, SunDim, TrendingDown, Info
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
@@ -507,56 +507,94 @@ export default function Home() {
 
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="lg:col-span-2 p-6 relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-10">
-            <Target className="text-sky-600" size={20} />
-            <h3 className="font-display font-semibold text-slate-900 text-lg">Cara Kerja Prediksi Slope SMART-MFC</h3>
+        <Card className="lg:col-span-2 p-6 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-5">
+              <Target className="text-sky-600" size={20} />
+              <h3 className="font-display font-semibold text-slate-900 text-lg">Cara Kerja Prediksi Slope SMART-MFC</h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Step 1 */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between hover:bg-sky-50/50 hover:border-sky-200 transition-all group">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">1</div>
+                    <FlaskConical size={20} className="text-sky-600 group-hover:scale-110 transition-transform" strokeWidth={1.75} />
+                  </div>
+                  <h4 className="text-slate-900 text-xs font-bold leading-tight mb-2">Ambil Data Telemetri</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    Sistem membaca titik data real-time <span className="font-semibold text-slate-800">{activeBatchName}</span> dari Cloud Gateway API.
+                  </p>
+                </div>
+                <div className="mt-4 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10px] text-sky-600 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                  <span>Live Telemetri</span>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between hover:bg-sky-50/50 hover:border-sky-200 transition-all group">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">2</div>
+                    <TrendingDown size={20} className="text-sky-600 group-hover:scale-110 transition-transform" strokeWidth={1.75} />
+                  </div>
+                  <h4 className="text-slate-900 text-xs font-bold leading-tight mb-2">Hitung Slope Regresi</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    Kemiringan penurunan TDS dihitung menggunakan regresi linier metode <span className="font-semibold text-slate-800">least squares</span>.
+                  </p>
+                </div>
+                <div className="mt-4 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10px] text-sky-700 font-semibold font-mono">
+                  <span>Slope: {regressionResult.slopePerStepStr}</span>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between hover:bg-sky-50/50 hover:border-sky-200 transition-all group">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">3</div>
+                    <Droplet size={20} className="text-sky-600 group-hover:scale-110 transition-transform" strokeWidth={1.75} />
+                  </div>
+                  <h4 className="text-slate-900 text-xs font-bold leading-tight mb-2">Generate 8 Node Abu-abu</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    8 node proyeksi masa depan dibuat &amp; ditandai titik abu-abu di grafik TDS.
+                  </p>
+                </div>
+                <div className="mt-4 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                  <span>Proyeksi +8 Node</span>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between hover:bg-sky-50/50 hover:border-sky-200 transition-all group">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">4</div>
+                    <Monitor size={20} className="text-sky-600 group-hover:scale-110 transition-transform" strokeWidth={1.75} />
+                  </div>
+                  <h4 className="text-slate-900 text-xs font-bold leading-tight mb-2">Estimasi TDS ≤1.000 mg/L</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    Prediksi sisa waktu hingga TDS mencapai target operasional ≤1.000 mg/L.
+                  </p>
+                </div>
+                <div className="mt-4 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10px] text-sky-700 font-bold font-mono">
+                  <span>Sisa: {remainingTimeString}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-            <div className="flex flex-row gap-4">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">1</div>
-                <FlaskConical size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
-              </div>
-              <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Ambil Data Telemetri</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Sistem membaca titik data real-time {activeBatchName} dari database Cloud Gateway API.</p>
-              </div>
+          <div className="mt-5 p-3 rounded-xl bg-sky-50/80 border border-sky-100/90 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-sky-900">
+            <div className="flex items-center gap-2">
+              <Info size={16} className="text-sky-600 flex-shrink-0" />
+              <span>Metode Prediksi Regresi Linier Least Squares (Slope)</span>
             </div>
-
-            <div className="flex flex-row gap-4">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">2</div>
-                <TrendingDown size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
-              </div>
-              <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Hitung Slope Regresi</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Kemiringan penurunan TDS dihitung menggunakan regresi linier metode least squares.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-row gap-4">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">3</div>
-                <Droplet size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
-              </div>
-              <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center">Generate 8 Node Abu-abu</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">8 node proyeksi masa depan dibuat &amp; ditandai dengan warna titik abu-abu di grafik TDS.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-row gap-4">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-md">4</div>
-                <Monitor size={36} className="text-sky-600 mt-6 drop-shadow-sm" strokeWidth={1.5} />
-              </div>
-              <div className="pt-1 flex flex-col justify-between">
-                <h4 className="text-slate-900 text-sm font-bold h-7 flex items-center leading-tight">Estimasi TDS ≤1.000 mg/L</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-5 font-medium">Prediksi sisa waktu hingga TDS mencapai target ≤1.000 mg/L ({remainingTimeString}).</p>
-              </div>
-            </div>
+            <span className="font-mono text-[11px] text-sky-700 bg-white/80 px-2 py-0.5 rounded border border-sky-200/80">
+              R² = {regressionResult.rSquaredStr}
+            </span>
           </div>
         </Card>
 
