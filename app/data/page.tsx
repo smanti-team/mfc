@@ -34,6 +34,8 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -321,52 +323,18 @@ function formatFullTime(ts: string | number): string {
 
 // Custom Dot Renderers
 const RenderCustomTdsDot = (props: any) => {
-  const { cx, cy, payload, index } = props;
+  const { cx, cy } = props;
   if (cx == null || cy == null) return <g />;
-  const valStr = typeof payload.tds === 'number'
-    ? payload.tds.toLocaleString('id-ID')
-    : payload.tds;
-  const isAbove = (index ?? 0) % 2 === 0;
-  const textY = isAbove ? cy - 10 : cy + 18;
   return (
-    <g>
-      <circle cx={cx} cy={cy} r={4} fill="#0284C7" stroke="#FFFFFF" strokeWidth={2} />
-      <text
-        x={cx}
-        y={textY}
-        fill="#0F172A"
-        fontSize={11}
-        fontWeight={600}
-        textAnchor="middle"
-      >
-        {valStr}
-      </text>
-    </g>
+    <circle cx={cx} cy={cy} r={4} fill="#0284C7" stroke="#FFFFFF" strokeWidth={2} />
   );
 };
 
 const RenderCustomVoltDot = (props: any) => {
-  const { cx, cy, payload, index } = props;
+  const { cx, cy } = props;
   if (cx == null || cy == null) return <g />;
-  const valStr = typeof payload.voltage === 'number'
-    ? payload.voltage.toFixed(3).replace('.', ',')
-    : payload.voltage;
-  const isAbove = (index ?? 0) % 2 === 0;
-  const textY = isAbove ? cy - 10 : cy + 18;
   return (
-    <g>
-      <circle cx={cx} cy={cy} r={4} fill="#16A34A" stroke="#FFFFFF" strokeWidth={2} />
-      <text
-        x={cx}
-        y={textY}
-        fill="#0F172A"
-        fontSize={11}
-        fontWeight={600}
-        textAnchor="middle"
-      >
-        {valStr}
-      </text>
-    </g>
+    <circle cx={cx} cy={cy} r={4} fill="#16A34A" stroke="#FFFFFF" strokeWidth={2} />
   );
 };
 
@@ -840,16 +808,12 @@ export default function DataPenelitianPage() {
 
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
     const n = scatterData.length;
-    let minX = scatterData[0].x;
-    let maxX = scatterData[0].x;
 
     for (const p of scatterData) {
       sumX += p.x;
       sumY += p.y;
       sumXY += p.x * p.y;
       sumX2 += p.x * p.x;
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
     }
 
     const denom = n * sumX2 - sumX * sumX;
@@ -858,14 +822,14 @@ export default function DataPenelitianPage() {
     const slope = (n * sumXY - sumX * sumY) / denom;
     const intercept = (sumY - slope * sumX) / n;
 
-    const startX = Math.floor(minX - 1);
-    const endX = Math.ceil(maxX + 1);
+    const startX = minScatterX;
+    const endX = maxScatterX;
 
     return [
-      { x: startX, y: Number((slope * startX + intercept).toFixed(3)) },
-      { x: endX, y: Number((slope * endX + intercept).toFixed(3)) },
+      { x: startX, y: Number((slope * startX + intercept).toFixed(4)), isTrendline: true },
+      { x: endX, y: Number((slope * endX + intercept).toFixed(4)), isTrendline: true },
     ];
-  }, [scatterData]);
+  }, [scatterData, minScatterX, maxScatterX]);
 
   // Dynamic Comparison Chart Data
   const comparisonChartData = useMemo(() => {
@@ -1169,20 +1133,42 @@ export default function DataPenelitianPage() {
 
     const continuousVoltageData: { cumHour: number; voltage: number; cycle: string }[] = [];
     let offsetHour = 0;
+    let s2StartHour = 0;
+    let s3StartHour = 0;
 
-    cycles.forEach((c) => {
-      if (c.readings.length > 0) {
-        c.readings.forEach((r) => {
-          continuousVoltageData.push({
-            cumHour: offsetHour + r.hour,
-            voltage: r.voltage,
-            cycle: c.id,
-          });
+    if (s1.length > 0) {
+      s1.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 1",
         });
-        const lastHour = c.readings[c.readings.length - 1].hour;
-        offsetHour += lastHour;
-      }
-    });
+      });
+      offsetHour = s1[s1.length - 1].hour;
+      s2StartHour = offsetHour;
+    }
+
+    if (s2.length > 0) {
+      s2.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: offsetHour + r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 2",
+        });
+      });
+      offsetHour += s2[s2.length - 1].hour;
+      s3StartHour = offsetHour;
+    }
+
+    if (s3.length > 0) {
+      s3.forEach((r) => {
+        continuousVoltageData.push({
+          cumHour: offsetHour + r.hour,
+          voltage: r.voltage,
+          cycle: "Siklus 3",
+        });
+      });
+    }
 
     const positiveCount = activeAnalyzed.filter((c) => c.pearsonR != null && c.pearsonR > 0).length;
     const sigCount = activeAnalyzed.filter((c) => c.pValue != null && c.pValue < 0.05).length;
@@ -1225,6 +1211,8 @@ export default function DataPenelitianPage() {
       },
       tdsReductionChartData,
       continuousVoltageData,
+      s2StartHour,
+      s3StartHour,
       h1Summary: {
         positiveCount,
         sigCount,
@@ -1450,15 +1438,21 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[320px] w-full mt-4 pb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 45 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <AreaChart data={singleCycleChartData} margin={{ top: 25, right: 35, left: 10, bottom: 45 }}>
+                    <defs>
+                      <linearGradient id="colorTdsSingle" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0284C7" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                     <XAxis
                       dataKey="hour"
                       stroke="#64748B"
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
-                      padding={{ left: 35, right: 25 }}
+                      padding={{ left: 25, right: 25 }}
                       tickMargin={10}
                       label={{ value: "Jam ke-", position: "insideBottom", offset: -25, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
@@ -1471,19 +1465,39 @@ export default function DataPenelitianPage() {
                       width={45}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold">Jam ke-{data.hour} ({data.actualTime || "Aktual"})</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sky-700 font-bold">
+                                  TDS: {typeof data.tds === 'number' ? data.tds.toLocaleString('id-ID') : data.tds} mg/L
+                                </span>
+                              </div>
+                              {data.status && (
+                                <p className="text-[10px] text-slate-500 font-medium">Status: {data.status}</p>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
                     <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideTopLeft" }} />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="tds"
                       name="TDS (mg/L)"
                       stroke="#0284C7"
                       strokeWidth={2.5}
-                      dot={<RenderCustomTdsDot />}
+                      fillOpacity={1}
+                      fill="url(#colorTdsSingle)"
+                      dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, fill: "#0284C7" }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -1498,15 +1512,21 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[320px] w-full mt-4 pb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={singleCycleChartData} margin={{ top: 35, right: 35, left: 10, bottom: 45 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <AreaChart data={singleCycleChartData} margin={{ top: 25, right: 35, left: 10, bottom: 45 }}>
+                    <defs>
+                      <linearGradient id="colorVoltSingle" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#16A34A" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#16A34A" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                     <XAxis
                       dataKey="hour"
                       stroke="#64748B"
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
-                      padding={{ left: 35, right: 25 }}
+                      padding={{ left: 25, right: 25 }}
                       tickMargin={10}
                       label={{ value: "Jam ke-", position: "insideBottom", offset: -25, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
@@ -1517,20 +1537,41 @@ export default function DataPenelitianPage() {
                       tickLine={false}
                       axisLine={{ stroke: "#CBD5E1" }}
                       width={45}
+                      tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold">Jam ke-{data.hour} ({data.actualTime || "Aktual"})</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-700 font-bold">
+                                  Tegangan: {typeof data.voltage === 'number' ? data.voltage.toFixed(3).replace('.', ',') : data.voltage} V
+                                </span>
+                              </div>
+                              {data.status && (
+                                <p className="text-[10px] text-slate-500 font-medium">Status: {data.status}</p>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="voltage"
                       name="Tegangan (V)"
                       stroke="#16A34A"
                       strokeWidth={2.5}
-                      dot={<RenderCustomVoltDot />}
+                      fillOpacity={1}
+                      fill="url(#colorVoltSingle)"
+                      dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, fill: "#16A34A" }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -1758,6 +1799,7 @@ export default function DataPenelitianPage() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
+                          if (data.isTrendline) return null;
                           return (
                             <div className="bg-slate-900/95 text-white p-2.5 border border-slate-700 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md">
                               <p className="text-sky-400 font-mono font-bold">
@@ -1772,19 +1814,34 @@ export default function DataPenelitianPage() {
                         return null;
                       }}
                     />
+                    {/* Telemetry Scatter Points (Green Dots) */}
                     <Scatter
-                      name="Data Telemetri"
+                      name="Titik Data"
                       data={sortedScatterData}
                       fill="#16A34A"
-                      line={{ stroke: '#0284C7', strokeWidth: 1.5, strokeDasharray: '4 4' }}
+                      line={false}
                       shape={<RenderScatterDotWithLabel />}
+                    />
+                    {/* Linear Regression Line (Straight Blue Dashed Line) */}
+                    <Scatter
+                      name="Regresi Linear"
+                      data={trendlineData}
+                      line={{ stroke: '#0284C7', strokeWidth: 2, strokeDasharray: '6 6' }}
+                      shape={() => <g />}
+                      legendType="none"
                     />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex items-center justify-center gap-2 mt-2 text-xs font-semibold text-slate-700">
-                <span className="w-8 border-b-2 border-dashed border-sky-600"></span>
-                <span>Garis tren linear</span>
+              <div className="flex items-center justify-center gap-6 mt-2 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-[#16A34A]"></span>
+                  <span>Titik data telemetri</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 border-b-2 border-dashed border-[#0284C7]"></span>
+                  <span>Garis regresi linear</span>
+                </div>
               </div>
             </Card>
 
@@ -1921,14 +1978,36 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 45, left: 10, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 25, right: 25 }} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0, 20]} ticks={[0, 4, 8, 12, 16, 20]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={35} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${val}%`, 'Penurunan TDS']} />
-                    <Line type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
-                    <Line type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', r: 3.5 }} />
-                    <Line type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', r: 3.5 }} />
+                  <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 35, left: 10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={20} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold border-b border-slate-100 pb-1">Jam ke-{label}</p>
+                              {payload.map((entry: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-4">
+                                  <span className="flex items-center gap-1.5 font-medium" style={{ color: entry.color }}>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                                    {entry.name}:
+                                  </span>
+                                  <span className="font-mono font-bold" style={{ color: entry.color }}>
+                                    {entry.value != null ? `${entry.value}%` : "—"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line connectNulls={true} type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1946,15 +2025,42 @@ export default function DataPenelitianPage() {
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={[0.45, 0.65]} ticks={[0.45, 0.50, 0.55, 0.60, 0.65]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => v.toFixed(2).replace('.', ',')} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", fontSize: "12px" }} formatter={(val: any) => [`${typeof val === 'number' ? val.toFixed(3).replace('.', ',') : val} V`, 'Tegangan']} />
-                    <ReferenceLine x={60} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    <ReferenceLine x={117} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    <Line type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', r: 3.5 }} />
-                  </LineChart>
+                  <AreaChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="colorVoltContinuous" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0284C7" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
+                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={25} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold">Jam Kumulatif: {data.cumHour} ({data.cycle || "Siklus"})</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sky-700 font-bold">
+                                  Tegangan: {typeof data.voltage === 'number' ? data.voltage.toFixed(3).replace('.', ',') : data.voltage} V
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    {comparisonAnalytics.s2StartHour > 0 && (
+                      <ReferenceLine x={comparisonAnalytics.s2StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    )}
+                    {comparisonAnalytics.s3StartHour > 0 && (
+                      <ReferenceLine x={comparisonAnalytics.s3StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
+                    )}
+                    <Area type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVoltContinuous)" dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3.5 }} activeDot={{ r: 6, fill: "#0284C7" }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -2303,15 +2409,21 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                    <AreaChart data={praSiklusChartData} margin={{ top: 25, right: 35, left: 10, bottom: 35 }}>
+                      <defs>
+                        <linearGradient id="colorTdsPra" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0284C7" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                       <XAxis
                         dataKey="waktu"
                         stroke="#64748B"
                         fontSize={10}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
-                        padding={{ left: 35, right: 25 }}
+                        padding={{ left: 25, right: 25 }}
                         tickMargin={10}
                       />
                       <YAxis
@@ -2323,18 +2435,35 @@ export default function DataPenelitianPage() {
                         width={45}
                       />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                                <p className="text-slate-900 font-semibold">{data.waktu}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sky-700 font-bold">
+                                    TDS: {typeof data.tds === 'number' ? data.tds.toLocaleString('id-ID') : data.tds} mg/L
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Line
+                      <Area
                         type="monotone"
                         dataKey="tds"
                         name="TDS (mg/L)"
                         stroke="#0284C7"
                         strokeWidth={2.5}
-                        dot={<RenderCustomTdsDot />}
+                        fillOpacity={1}
+                        fill="url(#colorTdsPra)"
+                        dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }}
                         activeDot={{ r: 6, fill: "#0284C7" }}
                       />
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
@@ -2349,15 +2478,21 @@ export default function DataPenelitianPage() {
                 </div>
                 <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={praSiklusChartData} margin={{ top: 35, right: 35, left: 10, bottom: 35 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                    <AreaChart data={praSiklusChartData} margin={{ top: 25, right: 35, left: 10, bottom: 35 }}>
+                      <defs>
+                        <linearGradient id="colorVoltPra" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#16A34A" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#16A34A" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                       <XAxis
                         dataKey="waktu"
                         stroke="#64748B"
                         fontSize={10}
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
-                        padding={{ left: 35, right: 25 }}
+                        padding={{ left: 25, right: 25 }}
                         tickMargin={10}
                       />
                       <YAxis
@@ -2367,20 +2502,38 @@ export default function DataPenelitianPage() {
                         tickLine={false}
                         axisLine={{ stroke: "#CBD5E1" }}
                         width={45}
+                        tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v}
                       />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                                <p className="text-slate-900 font-semibold">{data.waktu}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-emerald-700 font-bold">
+                                    Tegangan: {typeof data.voltage === 'number' ? data.voltage.toFixed(3).replace('.', ',') : data.voltage} V
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Line
+                      <Area
                         type="monotone"
                         dataKey="voltage"
                         name="Tegangan (V)"
                         stroke="#16A34A"
                         strokeWidth={2.5}
-                        dot={<RenderCustomVoltDot />}
+                        fillOpacity={1}
+                        fill="url(#colorVoltPra)"
+                        dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 2, r: 4 }}
                         activeDot={{ r: 6, fill: "#16A34A" }}
                       />
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
