@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, LineChart, Info, Menu, X } from "lucide-react";
+import { LayoutDashboard, History, LineChart, Info, Menu, X, LogOut } from "lucide-react";
+import { logoutAction } from "@/app/actions/auth";
 
 export default function Header() {
   const pathname = usePathname();
@@ -67,6 +68,16 @@ export default function Header() {
               </Link>
             );
           })}
+          
+          <form action={logoutAction} className="h-full flex items-center ml-2">
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            >
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </form>
         </nav>
 
         {/* Mobile Hamburger Button */}
@@ -104,6 +115,18 @@ export default function Header() {
                 </Link>
               );
             })}
+            
+            <div className="h-px w-full bg-slate-100 my-1"></div>
+            
+            <form action={logoutAction} className="w-full">
+              <button
+                type="submit"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <LogOut size={19} />
+                <span>Logout</span>
+              </button>
+            </form>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 text-center">
             <p className="text-[10px] text-slate-500 font-medium">

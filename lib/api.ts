@@ -1,11 +1,28 @@
 import type { Summary, Reading, SavePayload, SaveResponse } from "./types";
 
-// Base URL of the Cloudflare Worker that sits in front of D1.
-// Set NEXT_PUBLIC_MFC_API_URL in .env.local (see .env.local.example).
-const API_BASE = process.env.NEXT_PUBLIC_MFC_API_URL || "https://mfc-d1-api.derylchrist08.workers.dev";
+function getBaseUrl(providedUrl?: string) {
+  if (providedUrl) return providedUrl;
+  
+  let base = "";
+  
+  if (typeof window !== "undefined") {
+    // On the client, try to read the api_url cookie
+    const match = document.cookie.match(/(^|;)\s*api_url\s*=\s*([^;]+)/);
+    if (match) {
+      base = decodeURIComponent(match[2]);
+    }
+  }
+  
+  if (!base) {
+    throw new Error("Worker API URL is missing. Please provide it by logging in.");
+  }
+  
+  return base;
+}
 
-export async function fetchSummary(limit = 20): Promise<Summary> {
-  const res = await fetch(`${API_BASE}/summary?limit=${limit}`, {
+export async function fetchSummary(limit = 20, baseUrl?: string): Promise<Summary> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/summary?limit=${limit}`, {
     cache: "no-store",
   });
 
@@ -16,8 +33,9 @@ export async function fetchSummary(limit = 20): Promise<Summary> {
   return res.json();
 }
 
-export async function fetchLatest(): Promise<{ latest: Reading | null }> {
-  const res = await fetch(`${API_BASE}/latest`, {
+export async function fetchLatest(baseUrl?: string): Promise<{ latest: Reading | null }> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/latest`, {
     cache: "no-store",
   });
 
@@ -28,8 +46,9 @@ export async function fetchLatest(): Promise<{ latest: Reading | null }> {
   return res.json();
 }
 
-export async function fetchHistory(limit = 20): Promise<{ history: Reading[] }> {
-  const res = await fetch(`${API_BASE}/history?limit=${limit}`, {
+export async function fetchHistory(limit = 20, baseUrl?: string): Promise<{ history: Reading[] }> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/history?limit=${limit}`, {
     cache: "no-store",
   });
 
@@ -40,8 +59,9 @@ export async function fetchHistory(limit = 20): Promise<{ history: Reading[] }> 
   return res.json();
 }
 
-export async function saveTelemetry(payload: SavePayload): Promise<SaveResponse> {
-  const res = await fetch(`${API_BASE}/save`, {
+export async function saveTelemetry(payload: SavePayload, baseUrl?: string): Promise<SaveResponse> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/save`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -57,8 +77,9 @@ export async function saveTelemetry(payload: SavePayload): Promise<SaveResponse>
   return res.json();
 }
 
-export async function saveTds(tds: number, timestamp?: number): Promise<SaveResponse> {
-  const res = await fetch(`${API_BASE}/save/tds`, {
+export async function saveTds(tds: number, timestamp?: number, baseUrl?: string): Promise<SaveResponse> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/save/tds`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -74,8 +95,9 @@ export async function saveTds(tds: number, timestamp?: number): Promise<SaveResp
   return res.json();
 }
 
-export async function saveVoltage(voltage: number, timestamp?: number): Promise<SaveResponse> {
-  const res = await fetch(`${API_BASE}/save/voltage`, {
+export async function saveVoltage(voltage: number, timestamp?: number, baseUrl?: string): Promise<SaveResponse> {
+  const url = getBaseUrl(baseUrl);
+  const res = await fetch(`${url}/save/voltage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
