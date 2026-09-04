@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   const apiUrl = request.cookies.get("api_url")?.value;
   
   // Public paths that don't require authentication
-  const publicPaths = ["/login", "/favicon.ico", "/_next"];
+  const publicPaths = ["/login", "/demo", "/live-demo", "/favicon.ico", "/_next"];
   const isPublicPath = publicPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
   if (!apiUrl && !isPublicPath) {
