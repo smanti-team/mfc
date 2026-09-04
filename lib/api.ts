@@ -14,6 +14,10 @@ function getBaseUrl(providedUrl?: string) {
   }
   
   if (!base) {
+    base = process.env.NEXT_PUBLIC_MFC_API_URL || "";
+  }
+  
+  if (!base) {
     throw new Error("Worker API URL is missing. Please provide it by logging in.");
   }
   
