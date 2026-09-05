@@ -8,7 +8,7 @@ import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import {
   Activity, Zap, Hourglass, Calendar, RefreshCcw, Wifi, BatteryCharging,
-  FlaskConical, Droplet, Monitor, Target, SunDim, TrendingDown, Info
+  FlaskConical, Droplet, Monitor, Target, SunDim, TrendingDown, Info, CheckCircle2
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
@@ -146,8 +146,8 @@ export default function Home() {
 
   const lastUpdateTimeStr = latestReading ? formatFullDateTime(latestReading.timestamp) : "Belum ada data";
 
-  const activeBatchName = "Batch 001 — S1";
-  const processingStatus = "BERJALAN";
+  const activeBatchName = "Batch 003 — S3";
+  const processingStatus = "SELESAI";
 
   // Convert telemetry history to CycleReading format for regression analysis
   const s1CycleReadings = useMemo(() => {
@@ -294,19 +294,19 @@ export default function Home() {
 
         {/* Metric 4: Status Pengolahan */}
         <MagneticCard className="p-6 flex flex-col min-h-[170px] relative group overflow-hidden border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-          <div className="flex items-center gap-2 text-sky-600 mb-2 relative z-10">
-            <Activity size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.9s' }} />
+          <div className="flex items-center gap-2 text-emerald-600 mb-2 relative z-10">
+            <CheckCircle2 size={18} strokeWidth={2.5} className="animate-float" style={{ animationDelay: '0.9s' }} />
             <h3 className="text-[13px] font-semibold text-slate-700">Status Pengolahan</h3>
           </div>
           <div className="flex-1 flex flex-col justify-center relative z-10 mt-1">
             <div className="flex items-center gap-3">
-              <span className="font-display text-3xl lg:text-4xl leading-tight font-bold text-sky-600 tracking-tight">
+              <span className="font-display text-3xl lg:text-4xl leading-tight font-bold text-emerald-600 tracking-tight">
                 {processingStatus}
               </span>
-              <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 bg-sky-500 shadow-[0_0_12px_#0284C7] animate-pulse"></span>
+              <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 bg-emerald-500 shadow-[0_0_12px_#10B981]"></span>
             </div>
             <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">
-              Batch Aktif: <span className="font-semibold text-slate-800">{activeBatchName}</span>
+              Status Batch: <span className="font-semibold text-slate-800">Batch 003 — S3 (Siklus 1–3 Selesai)</span>
             </p>
           </div>
         </MagneticCard>

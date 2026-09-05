@@ -28,7 +28,8 @@ import {
   FlaskConical,
   Wifi,
   WifiOff,
-  Check
+  Check,
+  Flag
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -487,80 +488,146 @@ export default function DataPenelitianPage() {
     );
   }, [hardcodedPraSiklus]);
 
-  // Hardcoded Siklus 1 from PDF
+  // Permanent Hardcoded Siklus 1 dataset (100% static from PDF, completely isolated from API)
   const siklus1Readings: CycleReading[] = useMemo(() => {
     return [
-      { hour: 0, actualTime: "19/08 15.00", tds: 1183.68, voltage: 0.537, status: "RAW" },
-      { hour: 3, actualTime: "19/08 18.00", tds: 1182.54, voltage: 0.539, status: "Perkiraan" },
-      { hour: 6, actualTime: "19/08 21.00", tds: 1181.40, voltage: 0.541, status: "RAW" },
-      { hour: 9, actualTime: "20/08 00.00", tds: 1180.09, voltage: 0.544, status: "RAW" },
-      { hour: 12, actualTime: "20/08 03.00", tds: 1177.17, voltage: 0.547, status: "RAW" },
-      { hour: 15, actualTime: "20/08 06.00", tds: 1174.23, voltage: 0.550, status: "RAW" },
-      { hour: 18, actualTime: "20/08 09.00", tds: 1118.15, voltage: 0.552, status: "RAW" },
-      { hour: 21, actualTime: "20/08 12.00", tds: 1197.28, voltage: 0.555, status: "RAW" },
-      { hour: 24, actualTime: "20/08 15.00", tds: 1197.30, voltage: 0.557, status: "RAW" },
-      { hour: 27, actualTime: "20/08 18.00", tds: 1170.79, voltage: 0.560, status: "RAW" },
-      { hour: 30, actualTime: "20/08 21.00", tds: 1191.14, voltage: 0.562, status: "RAW" },
-      { hour: 33, actualTime: "21/08 00.00", tds: 1191.97, voltage: 0.565, status: "RAW" },
-      { hour: 36, actualTime: "21/08 03.00", tds: 1190.90, voltage: 0.568, status: "RAW" },
-      { hour: 39, actualTime: "21/08 06.00", tds: 1190.46, voltage: 0.570, status: "RAW" },
-      { hour: 42, actualTime: "21/08 09.00", tds: 1188.12, voltage: 0.572, status: "RAW terdekat" },
-      { hour: 45, actualTime: "21/08 12.00", tds: 1185.13, voltage: 0.575, status: "RAW terdekat" },
-      { hour: 48, actualTime: "21/08 15.00", tds: 1192.00, voltage: 0.578, status: "Perkiraan" },
-      { hour: 51, actualTime: "21/08 18.00", tds: 1198.00, voltage: 0.581, status: "Perkiraan" },
-      { hour: 54, actualTime: "21/08 21.00", tds: 1204.00, voltage: 0.584, status: "Perkiraan" },
-      { hour: 57, actualTime: "22/08 00.00", tds: 1210.00, voltage: 0.587, status: "Perkiraan" },
-      { hour: 60, actualTime: "22/08 03.00", tds: 1216.00, voltage: 0.590, status: "Perkiraan" },
-      { hour: 63, actualTime: "22/08 06.00", tds: 1221.00, voltage: 0.593, status: "Perkiraan" },
-      { hour: 66, actualTime: "22/08 09.00", tds: 1226.00, voltage: 0.596, status: "Perkiraan" },
-      { hour: 69, actualTime: "22/08 12.00", tds: 1231.00, voltage: 0.599, status: "Perkiraan" },
-      { hour: 72, actualTime: "22/08 15.00", tds: 1235.00, voltage: 0.602, status: "Perkiraan" },
-      { hour: 75, actualTime: "22/08 18.00", tds: 1238.00, voltage: 0.605, status: "Perkiraan" },
-      { hour: 78, actualTime: "22/08 21.00", tds: 1241.00, voltage: 0.608, status: "Perkiraan" },
-      { hour: 81, actualTime: "23/08 00.00", tds: 1243.00, voltage: 0.611, status: "Perkiraan" },
-      { hour: 84, actualTime: "23/08 03.00", tds: 1245.00, voltage: 0.614, status: "Perkiraan - puncak" },
-      { hour: 87, actualTime: "23/08 06.00", tds: 1242.00, voltage: 0.612, status: "Perkiraan" },
-      { hour: 90, actualTime: "23/08 09.00", tds: 1238.00, voltage: 0.610, status: "Perkiraan" },
-      { hour: 93, actualTime: "23/08 12.00", tds: 1234.00, voltage: 0.608, status: "Perkiraan" },
-      { hour: 96, actualTime: "23/08 15.00", tds: 1231.00, voltage: 0.606, status: "Perkiraan" },
-      { hour: 99, actualTime: "23/08 18.00", tds: 1228.00, voltage: 0.604, status: "Perkiraan" },
-      { hour: 102, actualTime: "23/08 21.00", tds: 1230.00, voltage: 0.602, status: "Perkiraan" },
-      { hour: 105, actualTime: "24/08 00.00", tds: 1233.00, voltage: 0.600, status: "Perkiraan" },
-      { hour: 108, actualTime: "24/08 03.00", tds: 1237.00, voltage: 0.598, status: "Perkiraan" },
-      { hour: 111, actualTime: "24/08 06.00", tds: 1241.00, voltage: 0.596, status: "Perkiraan" },
-      { hour: 114, actualTime: "24/08 09.00", tds: 1245.00, voltage: 0.594, status: "Perkiraan" },
-      { hour: 117, actualTime: "24/08 12.00", tds: 1232.00, voltage: 0.592, status: "Perkiraan" },
-      { hour: 120, actualTime: "24/08 15.00", tds: 1218.00, voltage: 0.590, status: "Perkiraan" },
+      { hour: 0, actualTime: "19/08 15.00", tds: 1183.68, voltage: 0.537, status: "VALID" },
+      { hour: 3, actualTime: "19/08 18.00", tds: 1182.54, voltage: 0.538, status: "VALID" },
+      { hour: 6, actualTime: "19/08 21.00", tds: 1181.40, voltage: 0.539, status: "VALID" },
+      { hour: 9, actualTime: "20/08 00.00", tds: 1180.09, voltage: 0.553, status: "VALID" },
+      { hour: 12, actualTime: "20/08 03.00", tds: 1177.17, voltage: 0.560, status: "VALID" },
+      { hour: 15, actualTime: "20/08 06.00", tds: 1174.23, voltage: 0.565, status: "VALID" },
+      { hour: 18, actualTime: "20/08 09.00", tds: 1118.15, voltage: 0.571, status: "VALID" },
+      { hour: 21, actualTime: "20/08 12.00", tds: 1197.28, voltage: 0.573, status: "VALID" },
+      { hour: 24, actualTime: "20/08 15.00", tds: 1197.30, voltage: 0.571, status: "VALID" },
+      { hour: 27, actualTime: "20/08 18.00", tds: 1170.79, voltage: 0.574, status: "VALID" },
+      { hour: 30, actualTime: "20/08 21.00", tds: 1191.14, voltage: 0.549, status: "VALID" },
+      { hour: 33, actualTime: "21/08 00.00", tds: 1191.97, voltage: 0.550, status: "VALID" },
+      { hour: 36, actualTime: "21/08 03.00", tds: 1190.90, voltage: 0.553, status: "VALID" },
+      { hour: 39, actualTime: "21/08 06.00", tds: 1190.46, voltage: 0.554, status: "VALID" },
+      { hour: 42, actualTime: "21/08 09.00", tds: 1188.12, voltage: 0.554, status: "VALID" },
+      { hour: 45, actualTime: "21/08 12.00", tds: 1185.13, voltage: 0.555, status: "VALID" },
+      { hour: 48, actualTime: "21/08 15.00", tds: 1181.98, voltage: 0.554, status: "VALID" },
+      { hour: 51, actualTime: "21/08 18.00", tds: 1179.05, voltage: 0.553, status: "VALID" },
+      { hour: 54, actualTime: "21/08 21.00", tds: 1184.01, voltage: 0.555, status: "VALID" },
+      { hour: 57, actualTime: "22/08 00.00", tds: 1188.04, voltage: 0.554, status: "VALID" },
+      { hour: 60, actualTime: "22/08 03.00", tds: 1191.93, voltage: 0.553, status: "VALID" },
+      { hour: 63, actualTime: "22/08 06.00", tds: 1186.97, voltage: 0.558, status: "VALID" },
+      { hour: 66, actualTime: "22/08 09.00", tds: 1180.96, voltage: 0.558, status: "VALID" },
+      { hour: 69, actualTime: "22/08 12.00", tds: 1175.99, voltage: 0.557, status: "VALID" },
+      { hour: 72, actualTime: "22/08 15.00", tds: 1172.05, voltage: 0.557, status: "VALID" },
+      { hour: 75, actualTime: "22/08 18.00", tds: 1177.04, voltage: 0.557, status: "VALID" },
+      { hour: 78, actualTime: "22/08 21.00", tds: 1183.09, voltage: 0.556, status: "VALID" },
+      { hour: 81, actualTime: "23/08 00.00", tds: 1189.02, voltage: 0.552, status: "VALID" },
+      { hour: 84, actualTime: "23/08 03.00", tds: 1194.97, voltage: 0.552, status: "VALID" },
+      { hour: 87, actualTime: "23/08 06.00", tds: 1191.99, voltage: 0.553, status: "VALID" },
+      { hour: 90, actualTime: "23/08 09.00", tds: 1185.93, voltage: 0.552, status: "VALID" },
+      { hour: 93, actualTime: "23/08 12.00", tds: 1180.01, voltage: 0.555, status: "VALID" },
+      { hour: 96, actualTime: "23/08 15.00", tds: 1175.03, voltage: 0.557, status: "VALID" },
+      { hour: 99, actualTime: "23/08 18.00", tds: 1177.99, voltage: 0.553, status: "VALID" },
+      { hour: 102, actualTime: "23/08 21.00", tds: 1184.08, voltage: 0.556, status: "VALID" },
+      { hour: 105, actualTime: "24/08 00.00", tds: 1190.03, voltage: 0.553, status: "VALID" },
+      { hour: 108, actualTime: "24/08 03.00", tds: 1196.04, voltage: 0.551, status: "VALID" },
+      { hour: 111, actualTime: "24/08 06.00", tds: 1200.96, voltage: 0.550, status: "VALID" },
+      { hour: 114, actualTime: "24/08 09.00", tds: 1196.98, voltage: 0.555, status: "VALID" },
+      { hour: 117, actualTime: "24/08 12.00", tds: 1190.95, voltage: 0.553, status: "VALID" },
+      { hour: 120, actualTime: "24/08 15.00", tds: 1185.92, voltage: 0.553, status: "VALID" },
     ];
   }, []);
 
-  // Dynamic Siklus 2 readings: ALL incoming API telemetry readings go 100% directly to Siklus 2
+  // Permanent Hardcoded Siklus 2 dataset (100% static from PDF, completely isolated from API)
   const siklus2Readings: CycleReading[] = useMemo(() => {
-    if (!summary.history || summary.history.length === 0) return [];
+    return [
+      { hour: 0, actualTime: "24/08 16.25", tds: 1050.00, voltage: 0.536, status: "VALID" },
+      { hour: 3, actualTime: "24/08 19.25", tds: 1037.37, voltage: 0.537, status: "VALID" },
+      { hour: 6, actualTime: "24/08 22.26", tds: 1036.34, voltage: 0.538, status: "VALID" },
+      { hour: 9, actualTime: "25/08 01.27", tds: 1035.31, voltage: 0.539, status: "VALID" },
+      { hour: 12, actualTime: "25/08 04.25", tds: 1034.29, voltage: 0.540, status: "VALID" },
+      { hour: 15, actualTime: "25/08 07.26", tds: 1033.26, voltage: 0.542, status: "VALID" },
+      { hour: 18, actualTime: "25/08 10.27", tds: 1032.06, voltage: 0.543, status: "VALID" },
+      { hour: 21, actualTime: "25/08 13.27", tds: 1037.85, voltage: 0.508, status: "VALID" },
+      { hour: 24, actualTime: "25/08 16.27", tds: 1034.29, voltage: 0.501, status: "VALID" },
+      { hour: 27, actualTime: "25/08 19.27", tds: 1054.99, voltage: 0.494, status: "VALID" },
+      { hour: 30, actualTime: "25/08 22.27", tds: 1059.98, voltage: 0.485, status: "VALID" },
+      { hour: 33, actualTime: "26/08 01.27", tds: 1066.36, voltage: 0.505, status: "VALID" },
+      { hour: 36, actualTime: "26/08 04.27", tds: 1049.03, voltage: 0.485, status: "VALID" },
+      { hour: 39, actualTime: "26/08 07.27", tds: 1047.46, voltage: 0.490, status: "VALID" },
+      { hour: 42, actualTime: "26/08 10.27", tds: 963.55, voltage: 0.542, status: "VALID" },
+      { hour: 45, actualTime: "26/08 13.27", tds: 920.57, voltage: 0.544, status: "VALID" },
+      { hour: 48, actualTime: "26/08 16.27", tds: 928.95, voltage: 0.546, status: "VALID" },
+      { hour: 51, actualTime: "26/08 19.27", tds: 936.26, voltage: 0.547, status: "VALID" },
+      { hour: 54, actualTime: "26/08 22.27", tds: 942.86, voltage: 0.548, status: "VALID" },
+      { hour: 57, actualTime: "27/08 01.27", tds: 949.41, voltage: 0.548, status: "VALID" },
+      { hour: 60, actualTime: "27/08 04.27", tds: 955.97, voltage: 0.549, status: "VALID" },
+      { hour: 63, actualTime: "27/08 07.27", tds: 963.50, voltage: 0.550, status: "VALID" },
+      { hour: 66, actualTime: "27/08 10.27", tds: 1073.75, voltage: 0.557, status: "VALID" },
+      { hour: 69, actualTime: "27/08 13.27", tds: 1089.20, voltage: 0.548, status: "VALID" },
+      { hour: 72, actualTime: "27/08 16.27", tds: 1103.83, voltage: 0.557, status: "VALID" },
+      { hour: 75, actualTime: "27/08 19.27", tds: 1117.30, voltage: 0.553, status: "VALID" },
+      { hour: 78, actualTime: "27/08 22.27", tds: 1121.96, voltage: 0.552, status: "VALID" },
+      { hour: 81, actualTime: "28/08 01.27", tds: 1121.23, voltage: 0.552, status: "VALID" },
+      { hour: 84, actualTime: "28/08 04.27", tds: 1122.94, voltage: 0.559, status: "VALID" },
+      { hour: 87, actualTime: "28/08 07.27", tds: 1117.13, voltage: 0.554, status: "VALID" },
+      { hour: 90, actualTime: "28/08 10.27", tds: 1076.35, voltage: 0.473, status: "VALID" },
+      { hour: 93, actualTime: "28/08 13.27", tds: 1072.45, voltage: 0.467, status: "VALID" },
+      { hour: 96, actualTime: "28/08 16.27", tds: 1085.36, voltage: 0.481, status: "VALID" },
+      { hour: 99, actualTime: "28/08 19.27", tds: 1093.03, voltage: 0.490, status: "VALID" },
+      { hour: 102, actualTime: "28/08 22.27", tds: 1102.70, voltage: 0.505, status: "VALID" },
+      { hour: 105, actualTime: "29/08 01.27", tds: 1111.37, voltage: 0.509, status: "VALID" },
+      { hour: 108, actualTime: "29/08 04.27", tds: 1119.67, voltage: 0.519, status: "VALID" },
+      { hour: 111, actualTime: "29/08 07.27", tds: 1129.38, voltage: 0.529, status: "VALID" },
+      { hour: 114, actualTime: "29/08 10.27", tds: 1119.74, voltage: 0.538, status: "VALID" },
+      { hour: 117, actualTime: "29/08 13.27", tds: 1113.15, voltage: 0.538, status: "VALID" },
+      { hour: 120, actualTime: "29/08 16.27", tds: 1108.98, voltage: 0.566, status: "VALID" },
+    ];
+  }, []);
 
-    // Filter out data that already belongs to Siklus 1 (before 24 Aug 2026 15:01)
-    // This ensures Siklus 2 starts completely fresh from 0.
-    const cutoffTime = new Date("2026-08-24T15:01:00").getTime();
-    const freshData = summary.history.filter((item) => {
-      return parseTimestamp(item.timestamp).getTime() > cutoffTime;
-    });
-
-    if (freshData.length === 0) return [];
-
-    // Sort chronologically
-    const sorted = [...freshData].sort(
-      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
-    );
-
-    // Deduplicate anomalies (e.g., spam from hardware) where multiple points share the same HH:MM
-    const uniqueByTime = new Map<string, Reading>();
-    sorted.forEach((item) => {
-      uniqueByTime.set(formatTime(item.timestamp), item);
-    });
-
-    const deduplicated = Array.from(uniqueByTime.values());
-    return convertHistoryToCycleReadings(deduplicated);
-  }, [summary.history]);
+  // Permanent Hardcoded Siklus 3 dataset (100% static from PDF, completely isolated from API)
+  const siklus3Readings: CycleReading[] = useMemo(() => {
+    return [
+      { hour: 0, actualTime: "29/08 17.25", tds: 1002.50, voltage: 0.653, status: "VALID" },
+      { hour: 3, actualTime: "29/08 20.25", tds: 1008.21, voltage: 0.645, status: "VALID" },
+      { hour: 6, actualTime: "29/08 23.26", tds: 1009.20, voltage: 0.638, status: "VALID" },
+      { hour: 9, actualTime: "30/08 02.27", tds: 1006.93, voltage: 0.587, status: "VALID" },
+      { hour: 12, actualTime: "30/08 05.25", tds: 1002.92, voltage: 0.550, status: "VALID" },
+      { hour: 15, actualTime: "30/08 08.26", tds: 1004.19, voltage: 0.517, status: "VALID" },
+      { hour: 18, actualTime: "30/08 11.26", tds: 1009.61, voltage: 0.518, status: "VALID" },
+      { hour: 21, actualTime: "30/08 14.26", tds: 1008.95, voltage: 0.492, status: "VALID" },
+      { hour: 24, actualTime: "30/08 17.26", tds: 1008.61, voltage: 0.486, status: "VALID" },
+      { hour: 27, actualTime: "30/08 20.26", tds: 1007.72, voltage: 0.492, status: "VALID" },
+      { hour: 30, actualTime: "30/08 23.26", tds: 1006.90, voltage: 0.499, status: "VALID" },
+      { hour: 33, actualTime: "31/08 02.26", tds: 1006.21, voltage: 0.503, status: "VALID" },
+      { hour: 36, actualTime: "31/08 05.26", tds: 1006.61, voltage: 0.490, status: "VALID" },
+      { hour: 39, actualTime: "31/08 08.26", tds: 1007.01, voltage: 0.476, status: "VALID" },
+      { hour: 42, actualTime: "31/08 11.26", tds: 1007.50, voltage: 0.462, status: "VALID" },
+      { hour: 45, actualTime: "31/08 14.26", tds: 1002.70, voltage: 0.455, status: "VALID" },
+      { hour: 48, actualTime: "31/08 17.26", tds: 1012.63, voltage: 0.456, status: "VALID" },
+      { hour: 51, actualTime: "31/08 20.26", tds: 1006.61, voltage: 0.459, status: "VALID" },
+      { hour: 54, actualTime: "31/08 23.26", tds: 1000.50, voltage: 0.461, status: "VALID" },
+      { hour: 57, actualTime: "01/09 02.26", tds: 996.38, voltage: 0.463, status: "VALID" },
+      { hour: 60, actualTime: "01/09 05.26", tds: 998.88, voltage: 0.452, status: "VALID" },
+      { hour: 63, actualTime: "01/09 08.26", tds: 1002.60, voltage: 0.437, status: "VALID" },
+      { hour: 66, actualTime: "01/09 11.26", tds: 1006.41, voltage: 0.423, status: "VALID" },
+      { hour: 69, actualTime: "01/09 14.26", tds: 1009.30, voltage: 0.410, status: "VALID" },
+      { hour: 72, actualTime: "01/09 17.26", tds: 1012.13, voltage: 0.397, status: "VALID" },
+      { hour: 75, actualTime: "01/09 20.26", tds: 1017.25, voltage: 0.405, status: "VALID" },
+      { hour: 78, actualTime: "01/09 23.26", tds: 1024.16, voltage: 0.431, status: "VALID" },
+      { hour: 81, actualTime: "02/09 02.26", tds: 1027.84, voltage: 0.439, status: "VALID" },
+      { hour: 84, actualTime: "02/09 05.26", tds: 1027.84, voltage: 0.428, status: "VALID" },
+      { hour: 87, actualTime: "02/09 08.26", tds: 1027.84, voltage: 0.416, status: "VALID" },
+      { hour: 90, actualTime: "02/09 11.26", tds: 1033.25, voltage: 0.401, status: "VALID" },
+      { hour: 93, actualTime: "02/09 14.26", tds: 1037.35, voltage: 0.401, status: "VALID" },
+      { hour: 96, actualTime: "02/09 17.26", tds: 1037.35, voltage: 0.414, status: "VALID" },
+      { hour: 99, actualTime: "02/09 20.26", tds: 1037.92, voltage: 0.428, status: "VALID" },
+      { hour: 102, actualTime: "02/09 23.26", tds: 1040.52, voltage: 0.447, status: "VALID" },
+      { hour: 105, actualTime: "03/09 02.26", tds: 1035.48, voltage: 0.455, status: "VALID" },
+      { hour: 108, actualTime: "03/09 05.26", tds: 1031.50, voltage: 0.455, status: "VALID" },
+      { hour: 111, actualTime: "03/09 08.26", tds: 1016.50, voltage: 0.455, status: "VALID" },
+      { hour: 114, actualTime: "03/09 11.26", tds: 1011.45, voltage: 0.455, status: "VALID" },
+      { hour: 117, actualTime: "03/09 14.26", tds: 1007.50, voltage: 0.455, status: "VALID" },
+      { hour: 120, actualTime: "03/09 17.26", tds: 1004.50, voltage: 0.455, status: "VALID" },
+    ];
+  }, []);
 
   const cycleDataMap: Record<string, SingleCycleConfig> = useMemo(() => {
     return {
@@ -577,10 +644,10 @@ export default function DataPenelitianPage() {
       "Siklus 3": {
         id: "Siklus 3",
         name: "Siklus 3",
-        readings: [],
+        readings: siklus3Readings,
       },
     };
-  }, [siklus1Readings, siklus2Readings]);
+  }, [siklus1Readings, siklus2Readings, siklus3Readings]);
 
   const summaryMatrix = useMemo(() => {
     const s1 = cycleDataMap["Siklus 1"]?.readings || [];
@@ -1296,6 +1363,7 @@ export default function DataPenelitianPage() {
       {/* Top Header Section */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
         <div>
+          <p className="text-sky-600 text-xs sm:text-sm font-semibold mb-1">Selamat datang di</p>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">
             <TypewriterText text="Data Penelitian" />
           </h1>
@@ -1303,7 +1371,7 @@ export default function DataPenelitianPage() {
             {isPraSiklus
               ? "Uji/commissioning Reaktor Utama sebelum Siklus 1"
               : isComparison
-                ? "Perbandingan hasil Siklus 1, Siklus 2, dan Siklus 3 berdasarkan TDS dan tegangan MFC."
+                ? "Perbandingan hasil Siklus 1, Siklus 2, dan Siklus 3 berdasarkan TDS, tegangan MFC, korelasi, dan evaluasi prediksi."
                 : isMicroEnergy
                   ? "Spesifikasi teknis, efisiensi energi, dan estimasi daya daya listrik mikro yang dihasilkan MFC."
                   : `Data ${activeTab}, grafik penelitian, regresi, dan analisis penurunan TDS.`}
@@ -1392,18 +1460,18 @@ export default function DataPenelitianPage() {
             <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Droplet size={17} strokeWidth={2.5} />
+                  <TrendingDown size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Penurunan TDS</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Penurunan akhir</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {cycleReadings.length > 0 ? `${overallReductionPct.toFixed(1).replace(".", ",")}%` : "—"}
+                  {cycleReadings.length > 0 ? `${overallReductionPct.toFixed(2).replace(".", ",")}%` : "—"}
                 </div>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  Dari baseline {currentCycle.name}
+                  Dari baseline ke 120 jam
                 </p>
               </div>
             </MagneticCard>
@@ -1411,17 +1479,19 @@ export default function DataPenelitianPage() {
             <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                  <Target size={17} strokeWidth={2.5} />
+                  <Zap size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">R² Regresi</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rentang Tegangan</h3>
               </div>
               <div className="my-auto py-1">
-                <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
-                  {cycleReadings.length > 0 ? regressionResult.rSquaredStr : "—"}
+                <div className="font-display text-2xl sm:text-3xl font-extrabold text-sky-600 tracking-tight">
+                  {cycleReadings.length > 0
+                    ? `${Math.min(...cycleReadings.map((r) => r.voltage)).toFixed(3).replace(".", ",")} – ${Math.max(...cycleReadings.map((r) => r.voltage)).toFixed(3).replace(".", ",")} V`
+                    : "—"}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Koefisien Determinasi</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Selama {currentCycle.name}</p>
               </div>
             </MagneticCard>
           </div>
@@ -1429,7 +1499,7 @@ export default function DataPenelitianPage() {
           {/* Middle Section: 2 Charts Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Chart: Grafik TDS Penelitian */}
-            <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 relative">
               <div className="mb-2">
                 <h3 className="font-display font-bold text-slate-900 text-base">
                   Grafik TDS Penelitian
@@ -1485,7 +1555,7 @@ export default function DataPenelitianPage() {
                         return null;
                       }}
                     />
-                    <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target Operasional TDS ≤1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideTopLeft" }} />
+                    <ReferenceLine y={1000} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "Target operasional TDS ≤ 1.000 mg/L", fill: "#EF4444", fontSize: 10, position: "insideTopLeft" }} />
                     <Area
                       type="monotone"
                       dataKey="tds"
@@ -1503,7 +1573,7 @@ export default function DataPenelitianPage() {
             </Card>
 
             {/* Right Chart: Grafik Tegangan MFC */}
-            <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 relative">
               <div className="mb-2">
                 <h3 className="font-display font-bold text-slate-900 text-base">
                   Grafik Tegangan MFC
@@ -1584,7 +1654,7 @@ export default function DataPenelitianPage() {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
-                    Raw Data Penelitian — Interval 3 Jam
+                    Data Audit Penelitian — Interval ±3 Jam
                   </h3>
                   <button
                     onClick={handleDownloadCSV}
@@ -1604,7 +1674,7 @@ export default function DataPenelitianPage() {
                         <th className="py-2.5 px-3 font-semibold">TDS (mg/L)</th>
                         <th className="py-2.5 px-3 font-semibold">Penurunan TDS (%)</th>
                         <th className="py-2.5 px-3 font-semibold">Tegangan (V)</th>
-                        <th className="py-2.5 px-3 font-semibold">Status Data</th>
+                        <th className="py-2.5 px-3 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
@@ -1669,86 +1739,92 @@ export default function DataPenelitianPage() {
 
                 <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
                   <Database size={13} className="text-slate-400" />
-                  <span>Sumber data: ESP32/API SMART-MFC • Timestamp tersimpan otomatis</span>
+                  <span>Sumber data: ESP32/AIO SMART-MFC • Timestamp tersimpan otomatis</span>
                 </div>
               </div>
             </Card>
 
-            {/* Right Card: Prediksi TDS dengan Regresi Linier */}
+            {/* Right Card: Evaluasi Prediksi Regresi Linier */}
             <Card className="lg:col-span-5 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
               <div>
                 <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
-                  Prediksi TDS dengan Regresi Linier
+                  Evaluasi Prediksi Regresi Linier
                 </h3>
-
-                <div className="bg-sky-50/80 border border-sky-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-[10px] text-sky-600 font-semibold tracking-wider uppercase mb-1">
-                    Persamaan Regresi:
-                  </p>
-                  <h4 className="font-display text-2xl font-bold text-sky-700 font-mono tracking-tight">
-                    {cycleReadings.length > 0 ? regressionResult.regressionEq : "y = —"}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-2 font-mono">
-                    y = TDS (mg/L)<br />
-                    x = waktu sejak t=0 (jam)
-                  </p>
-                </div>
 
                 <div className="space-y-3 text-xs text-slate-700 font-medium">
                   <div className="flex items-center gap-2 text-sky-700 font-semibold">
                     <Droplet size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Target Operasional TDS ≤1.000 mg/L</span>
+                    <span>Target Operasional TDS ≤ 1.000 mg/L</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                     <span className="flex items-center gap-2">
-                      <Clock size={15} className="text-sky-600 flex-shrink-0" />
-                      Estimasi target tercapai pada:
+                      <Info size={15} className="text-rose-500 flex-shrink-0" />
+                      Status Prediksi
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.targetHourStr : "—"}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                    <span className="flex items-center gap-2">
-                      <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
-                      Estimasi sisa waktu dari data jam ke-{cycleReadings.length > 0 ? regressionResult.latestHour : 0}:
+                    <span className="font-semibold text-rose-600">
+                      {activeTab === "Siklus 3" || activeTab === "Siklus 2" ? "Tidak menghasilkan estimasi pra-target yang valid" : "Tidak menghasilkan estimasi target yang valid"}
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.remainingStr : "—"}</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                     <span className="flex items-center gap-2">
                       <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
-                      R² (Koefisien Determinasi):
+                      {activeTab === "Siklus 3" || activeTab === "Siklus 2" ? "Slope 8 titik terakhir pra-target" : "Slope 8 titik terakhir"}
                     </span>
-                    <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.rSquaredStr : "—"}</span>
+                    <span className="font-mono font-bold text-sky-700">
+                      {activeTab === "Siklus 3" ? "+0,131 mg/L/jam" : activeTab === "Siklus 2" ? "+1,049 mg/L/jam" : "+0,458 mg/L/jam"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <span className="flex items-center gap-2">
+                      <Target size={15} className="text-sky-600 flex-shrink-0" />
+                      {activeTab === "Siklus 3" || activeTab === "Siklus 2" ? "R² window pra-target" : "R² window akhir"}
+                    </span>
+                    <span className="font-mono font-bold text-sky-700">
+                      {activeTab === "Siklus 3" ? "0,108" : activeTab === "Siklus 2" ? "0,387" : "0,198"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <span className="flex items-center gap-2">
+                      <Clock size={15} className="text-sky-600 flex-shrink-0" />
+                      Waktu target teramati
+                    </span>
+                    <span className="font-mono font-bold text-sky-700">
+                      {activeTab === "Siklus 3" ? "24 jam" : activeTab === "Siklus 2" ? "42 jam" : "Tidak tercapai hingga 120 jam"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <span className="flex items-center gap-2">
+                      <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
+                      Estimasi time-to-target
+                    </span>
+                    <span className="font-mono font-bold text-sky-700">—</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <span className="flex items-center gap-2">
+                      <Info size={15} className="text-sky-600 flex-shrink-0" />
+                      Error prediksi
+                    </span>
+                    <span className="font-mono font-bold text-sky-700">Tidak dapat dihitung</span>
                   </div>
                 </div>
 
-                {/* Validasi Prediksi Sub-Section */}
-                <div className="mt-5 pt-4 border-t border-slate-200/80">
-                  <h5 className="text-xs font-bold text-slate-900 mb-2">Validasi Prediksi</h5>
-                  <div className="space-y-2 text-xs text-slate-600">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-                        Prediksi waktu target
-                      </span>
-                      <span className="font-mono font-bold text-sky-700">{cycleReadings.length > 0 ? regressionResult.targetHourStr : "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                        Waktu aktual target
-                      </span>
-                      <span className="font-mono font-bold text-slate-700">{cycleReadings.length > 0 ? regressionResult.actualTargetHourStr : "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        Error / Selisih
-                      </span>
-                      <span className="font-mono font-bold text-slate-700">{cycleReadings.length > 0 ? regressionResult.errorStr : "—"}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 italic pt-1">
-                      (Waktu aktual target akan otomatis terisi jika TDS ≤1.000 mg/L tercapai)
+                <div className="mt-5 p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 space-y-1">
+                  <div className="flex items-start gap-2">
+                    <Info size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="font-medium leading-relaxed">
+                      {activeTab === "Siklus 3" ? (
+                        <>
+                          <strong>Siklus telah selesai.</strong> Target sempat tercapai pada jam 24, tetapi model regresi belum mengantisipasi crossing target sebelum peristiwa tersebut; akurasi prediksi pra-target tidak dapat divalidasi.
+                        </>
+                      ) : activeTab === "Siklus 2" ? (
+                        <>
+                          <strong>Siklus telah selesai.</strong> Target sempat tercapai pada jam 42, tetapi model regresi belum mengantisipasi crossing target sebelum peristiwa tersebut; akurasi prediksi pra-target tidak dapat divalidasi.
+                        </>
+                      ) : (
+                        <>
+                          <strong>Siklus telah selesai.</strong> Karena target tidak tercapai dan tren akhir meningkat, akurasi prediksi time-to-target pada Siklus 1 tidak dapat divalidasi.
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1779,7 +1855,7 @@ export default function DataPenelitianPage() {
                       axisLine={{ stroke: "#CBD5E1" }}
                       domain={[minScatterX, maxScatterX]}
                       tickFormatter={(v) => `${v}%`}
-                      label={{ value: "Penurunan TDS (%)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }}
+                      label={{ value: "% Penurunan TDS (%)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }}
                     />
                     <YAxis
                       type="number"
@@ -1836,11 +1912,11 @@ export default function DataPenelitianPage() {
               <div className="flex items-center justify-center gap-6 mt-2 text-xs font-semibold text-slate-700">
                 <div className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-[#16A34A]"></span>
-                  <span>Titik data telemetri</span>
+                  <span>Titik data (n = 41)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-8 border-b-2 border-dashed border-[#0284C7]"></span>
-                  <span>Garis regresi linear</span>
+                  <span>Garis regresi linier</span>
                 </div>
               </div>
             </Card>
@@ -1848,14 +1924,21 @@ export default function DataPenelitianPage() {
             {/* Right: Pearson Statistics & Dynamic Interpretation Panel */}
             <Card className="lg:col-span-4 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
               <div>
+                <h3 className="font-display font-bold text-slate-900 text-base mb-4">
+                  Statistik Korelasi
+                </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">Pearson r</span>
-                    <span className="font-mono font-extrabold text-base text-sky-700">{cycleReadings.length > 0 ? pearsonResult.rStr : "—"}</span>
+                    <span className="font-mono font-extrabold text-base text-sky-700">
+                      {cycleReadings.length > 0 ? (activeTab === "Siklus 3" ? "0,423" : activeTab === "Siklus 2" ? "0,152" : activeTab === "Siklus 1" ? "0,329" : pearsonResult.rStr) : "—"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">p-value</span>
-                    <span className="font-mono font-extrabold text-base text-sky-700">{cycleReadings.length > 0 ? pearsonResult.pValueStr : "—"}</span>
+                    <span className="font-mono font-extrabold text-base text-sky-700">
+                      {cycleReadings.length > 0 ? (activeTab === "Siklus 3" ? "0,006" : activeTab === "Siklus 2" ? "0,343" : activeTab === "Siklus 1" ? "0,036" : pearsonResult.pValueStr) : "—"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <span className="font-bold text-xs text-slate-800">n (jumlah data)</span>
@@ -1866,11 +1949,75 @@ export default function DataPenelitianPage() {
                 <div className="mt-6 p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2">
                   <h5 className="font-bold text-xs text-amber-900">Interpretasi:</h5>
                   <p className="text-xs font-semibold text-amber-950 leading-relaxed">
-                    {cycleReadings.length > 0 ? pearsonResult.interpretation : "Belum ada data pengujian pada siklus ini. Perhitungan korelasi Pearson akan terisi otomatis setelah pengujian dilakukan."}
+                    {activeTab === "Siklus 3"
+                      ? "Korelasi positif sedang; signifikan (p < 0,05)."
+                      : activeTab === "Siklus 2"
+                        ? "Korelasi positif lemah; tidak signifikan (p > 0,05)."
+                        : activeTab === "Siklus 1"
+                          ? "Korelasi positif lemah; signifikan (α = 0,05), namun pola masih fluktuatif."
+                          : (cycleReadings.length > 0 ? pearsonResult.interpretation : "Belum ada data pengujian pada siklus ini. Perhitungan korelasi Pearson akan terisi otomatis setelah pengujian dilakukan.")}
                   </p>
                 </div>
               </div>
             </Card>
+          </div>
+
+          {/* 3 Bottom Cards requested by user from photo */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                  <Droplet size={17} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Baseline TDS</h3>
+              </div>
+              <div className="my-auto py-1">
+                <div className="font-display text-3xl font-extrabold text-sky-600 tracking-tight">
+                  {cycleReadings.length > 0 ? `${cycleReadings[0].tds.toFixed(2).replace('.', ',')} mg/L` : "—"}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Nilai awal (jam 0)</p>
+              </div>
+            </MagneticCard>
+
+            <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 size={17} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">TDS akhir (120 jam)</h3>
+              </div>
+              <div className="my-auto py-1">
+                <div className="font-display text-3xl font-extrabold text-sky-600 tracking-tight">
+                  {cycleReadings.length > 0 ? `${cycleReadings[cycleReadings.length - 1].tds.toFixed(2).replace('.', ',')} mg/L` : "—"}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Nilai pada jam ke-120</p>
+              </div>
+            </MagneticCard>
+
+            <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                  <Flag size={17} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Status</h3>
+              </div>
+              <div className="my-auto py-1">
+                <div className="font-sans text-sm font-bold text-slate-800 leading-snug">
+                  {activeTab === "Siklus 3"
+                    ? "Target TDS ≤ 1.000 mg/L tercapai sementara, lalu rebound; tren akhir sedikit di atas target."
+                    : activeTab === "Siklus 2"
+                      ? "Target TDS ≤ 1.000 mg/L tercapai sementara, lalu rebound; tren akhir belum memenuhi target."
+                      : "Fluktuatif, target TDS ≤ 1.000 mg/L tidak tercapai selama 120 jam."}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Status evaluasi pengujian</p>
+              </div>
+            </MagneticCard>
           </div>
         </div>
       )}
@@ -1885,11 +2032,11 @@ export default function DataPenelitianPage() {
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <Droplet size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata Penurunan TDS</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata penurunan maksimum TDS</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {comparisonAnalytics.topMetrics.avgReductionStr}
+                  6,16%
                 </div>
               </div>
               <div>
@@ -1904,15 +2051,15 @@ export default function DataPenelitianPage() {
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <Clock size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata Waktu Mencapai Target</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rata-rata waktu pertama mencapai target (n=2)</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {comparisonAnalytics.topMetrics.avgTargetTimeStr}
+                  33 jam
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Target Operasional TDS ≤1.000 mg/L</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">Dari siklus yang mencapai target</p>
               </div>
             </MagneticCard>
 
@@ -1921,16 +2068,16 @@ export default function DataPenelitianPage() {
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <Zap size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rentang Tegangan MFC</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rentang tegangan MFC</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {comparisonAnalytics.topMetrics.voltageRangeStr}
+                  0,397–0,653 V
                 </div>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-500 leading-tight">
-                  Rentang tegangan selama 3 siklus
+                  Rentang keseluruhan 3 siklus
                 </p>
               </div>
             </MagneticCard>
@@ -1940,15 +2087,15 @@ export default function DataPenelitianPage() {
                 <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
                   <ChartIcon size={17} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">MAE Prediksi Waktu</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Siklus yang mencapai target sementara</h3>
               </div>
               <div className="my-auto py-1">
                 <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                  {comparisonAnalytics.topMetrics.maeStr}
+                  2 dari 3
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 leading-tight">Rata-rata error absolut prediksi waktu</p>
+                <p className="text-xs font-semibold text-slate-500 leading-tight">S2 dan S3 sempat ≤ 1.000 mg/L</p>
               </div>
             </MagneticCard>
           </div>
@@ -1981,7 +2128,7 @@ export default function DataPenelitianPage() {
                   <LineChart data={comparisonAnalytics.tdsReductionChartData} margin={{ top: 25, right: 35, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
                     <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={20} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => `${v}%`} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[-7.5, 12.5]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => `${v.toFixed(1).replace('.', ',')}%`} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
@@ -1995,7 +2142,7 @@ export default function DataPenelitianPage() {
                                     {entry.name}:
                                   </span>
                                   <span className="font-mono font-bold" style={{ color: entry.color }}>
-                                    {entry.value != null ? `${entry.value}%` : "—"}
+                                    {entry.value != null ? `${entry.value.toFixed(2).replace('.', ',')}%` : "—"}
                                   </span>
                                 </div>
                               ))}
@@ -2005,62 +2152,72 @@ export default function DataPenelitianPage() {
                         return null;
                       }}
                     />
-                    <Line connectNulls={true} type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2.5} dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
-                    <Line connectNulls={true} type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2.5} dot={{ fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
-                    <Line connectNulls={true} type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2.5} dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s1Pct" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s2Pct" name="Siklus 2" stroke="#D97706" strokeWidth={2} dot={{ fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s3Pct" name="Siklus 3" stroke="#16A34A" strokeWidth={2} dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+              <div className="flex items-center gap-1.5 mt-3 text-xs font-medium text-slate-500">
+                <Info size={15} className="text-sky-600 flex-shrink-0" />
+                <span>Nilai negatif menunjukkan TDS melebihi baseline siklus.</span>
+              </div>
             </Card>
 
-            {/* Right Chart: Perkembangan Tegangan MFC Selama Tiga Siklus */}
+            {/* Right Chart: Perbandingan Tegangan MFC Antar-Siklus */}
             <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <div className="mb-2 flex items-center justify-between">
                 <div>
                   <h3 className="font-display font-bold text-slate-900 text-base">
-                    Perkembangan Tegangan MFC Selama Tiga Siklus
+                    Perbandingan Tegangan MFC Antar-Siklus
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">Reaktor Utama (S1 → S2 → S3)</p>
+                  <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-semibold">
+                  <span className="flex items-center gap-1 text-sky-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span> Siklus 1
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span> Siklus 2
+                  </span>
+                  <span className="flex items-center gap-1 text-emerald-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Siklus 3
+                  </span>
                 </div>
               </div>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={comparisonAnalytics.continuousVoltageData} margin={{ top: 25, right: 25, left: 10, bottom: 25 }}>
-                    <defs>
-                      <linearGradient id="colorVoltContinuous" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0284C7" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={comparisonChartData} margin={{ top: 25, right: 35, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" vertical={true} horizontal={true} strokeOpacity={0.6} />
-                    <XAxis dataKey="cumHour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={25} label={{ value: "Waktu Eksperimen Kumulatif (Jam)", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
-                    <YAxis stroke="#64748B" fontSize={11} domain={['auto', 'auto']} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v} />
+                    <XAxis dataKey="hour" stroke="#64748B" fontSize={11} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} padding={{ left: 20, right: 20 }} minTickGap={20} label={{ value: "Jam ke-", position: "insideBottom", offset: -15, fill: "#475569", fontSize: 11, fontWeight: 500 }} />
+                    <YAxis stroke="#64748B" fontSize={11} domain={[0.38, 0.66]} tickLine={false} axisLine={{ stroke: "#CBD5E1" }} width={45} tickFormatter={(v) => `${v.toFixed(2).replace('.', ',')}`} />
                     <Tooltip
-                      content={({ active, payload }) => {
+                      content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
-                          const data = payload[0].payload;
                           return (
-                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
-                              <p className="text-slate-900 font-semibold">Jam Kumulatif: {data.cumHour} ({data.cycle || "Siklus"})</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sky-700 font-bold">
-                                  Tegangan: {typeof data.voltage === 'number' ? data.voltage.toFixed(3).replace('.', ',') : data.voltage} V
-                                </span>
-                              </div>
+                            <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl backdrop-blur-md text-slate-900">
+                              <p className="text-slate-900 font-semibold border-b border-slate-100 pb-1">Jam ke-{label}</p>
+                              {payload.map((entry: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-4">
+                                  <span className="flex items-center gap-1.5 font-medium" style={{ color: entry.color }}>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                                    {entry.name}:
+                                  </span>
+                                  <span className="font-mono font-bold" style={{ color: entry.color }}>
+                                    {entry.value != null ? `${entry.value.toFixed(3).replace('.', ',')} V` : "—"}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    {comparisonAnalytics.s2StartHour > 0 && (
-                      <ReferenceLine x={comparisonAnalytics.s2StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S2", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    )}
-                    {comparisonAnalytics.s3StartHour > 0 && (
-                      <ReferenceLine x={comparisonAnalytics.s3StartHour} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: "Mulai S3", position: "top", fill: "#334155", fontSize: 10, fontWeight: 700 }} />
-                    )}
-                    <Area type="monotone" dataKey="voltage" name="Tegangan Reaktor Utama" stroke="#0284C7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVoltContinuous)" dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3.5 }} activeDot={{ r: 6, fill: "#0284C7" }} />
-                  </AreaChart>
+                    <Line connectNulls={true} type="monotone" dataKey="s1Volt" name="Siklus 1" stroke="#0284C7" strokeWidth={2} dot={{ fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s2Volt" name="Siklus 2" stroke="#D97706" strokeWidth={2} dot={{ fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line connectNulls={true} type="monotone" dataKey="s3Volt" name="Siklus 3" stroke="#16A34A" strokeWidth={2} dot={{ fill: '#16A34A', stroke: '#FFFFFF', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -2072,13 +2229,6 @@ export default function DataPenelitianPage() {
               <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
                 Ringkasan Kinerja Pengolahan
               </h3>
-              <button
-                onClick={handleDownloadCSV}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
-              >
-                <Download size={14} />
-                Download CSV Ringkasan
-              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -2087,25 +2237,41 @@ export default function DataPenelitianPage() {
                   <tr>
                     <th className="py-2.5 px-4 font-semibold">Siklus</th>
                     <th className="py-2.5 px-4 font-semibold">TDS Awal</th>
+                    <th className="py-2.5 px-4 font-semibold">TDS Minimum</th>
                     <th className="py-2.5 px-4 font-semibold">TDS Akhir</th>
-                    <th className="py-2.5 px-4 font-semibold">Penurunan (%)</th>
-                    <th className="py-2.5 px-4 font-semibold">Waktu Target Teramati</th>
-                    <th className="py-2.5 px-4 font-semibold">Tegangan Awal</th>
-                    <th className="py-2.5 px-4 font-semibold">Tegangan Maks.</th>
+                    <th className="py-2.5 px-4 font-semibold">Penurunan Maksimum (%)</th>
+                    <th className="py-2.5 px-4 font-semibold">Waktu Target Pertama</th>
+                    <th className="py-2.5 px-4 font-semibold">Tegangan Min–Maks</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                  {comparisonAnalytics.analyzedCycles.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-4 font-bold text-sky-700">{row.id}</td>
-                      <td className="py-3 px-4 font-mono">{row.tdsAwalStr}</td>
-                      <td className="py-3 px-4 font-mono">{row.tdsAkhirStr}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-sky-700">{row.penurunanPctStr}</td>
-                      <td className="py-3 px-4 font-mono">{row.waktuTargetStr}</td>
-                      <td className="py-3 px-4 font-mono">{row.teganganAwalStr}</td>
-                      <td className="py-3 px-4 font-mono">{row.teganganMaksStr}</td>
-                    </tr>
-                  ))}
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-4 font-bold text-sky-700">S1</td>
+                    <td className="py-3 px-4 font-mono">1.183,68 mg/L</td>
+                    <td className="py-3 px-4 font-mono">1.118,15 mg/L</td>
+                    <td className="py-3 px-4 font-mono">1.185,92 mg/L</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-800">5,54%</td>
+                    <td className="py-3 px-4 font-mono">—</td>
+                    <td className="py-3 px-4 font-mono">0,537–0,574 V</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-4 font-bold text-sky-700">S2</td>
+                    <td className="py-3 px-4 font-mono">1.050,00 mg/L</td>
+                    <td className="py-3 px-4 font-mono">920,57 mg/L</td>
+                    <td className="py-3 px-4 font-mono">1.108,98 mg/L</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-800">12,33%</td>
+                    <td className="py-3 px-4 font-mono">42 jam</td>
+                    <td className="py-3 px-4 font-mono">0,467–0,566 V</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-4 font-bold text-sky-700">S3</td>
+                    <td className="py-3 px-4 font-mono">1.002,50 mg/L</td>
+                    <td className="py-3 px-4 font-mono">996,38 mg/L</td>
+                    <td className="py-3 px-4 font-mono">1.004,50 mg/L</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-800">0,61%</td>
+                    <td className="py-3 px-4 font-mono">24 jam</td>
+                    <td className="py-3 px-4 font-mono">0,397–0,653 V</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -2130,15 +2296,27 @@ export default function DataPenelitianPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                    {comparisonAnalytics.analyzedCycles.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3 px-3 font-bold text-sky-700">{row.id}</td>
-                        <td className="py-3 px-3 font-mono font-bold text-sky-700">{row.pearsonRStr}</td>
-                        <td className="py-3 px-3 font-mono">{row.pValueStr}</td>
-                        <td className="py-3 px-3 font-mono">{row.n}</td>
-                        <td className="py-3 px-3">{row.h1Interpretation}</td>
-                      </tr>
-                    ))}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S1</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,329</td>
+                      <td className="py-3 px-3 font-mono">0,036</td>
+                      <td className="py-3 px-3 font-mono">41</td>
+                      <td className="py-3 px-3">Korelasi positif lemah; signifikan</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S2</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,152</td>
+                      <td className="py-3 px-3 font-mono">0,343</td>
+                      <td className="py-3 px-3 font-mono">41</td>
+                      <td className="py-3 px-3">Korelasi positif lemah; tidak signifikan</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S3</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,423</td>
+                      <td className="py-3 px-3 font-mono">0,006</td>
+                      <td className="py-3 px-3 font-mono">41</td>
+                      <td className="py-3 px-3">Korelasi positif sedang; signifikan</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -2152,21 +2330,21 @@ export default function DataPenelitianPage() {
                 </h3>
                 <div className="space-y-3 text-xs text-slate-700 font-medium">
                   <div className="flex items-center gap-2.5">
-                    <TrendingDown size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Arah hubungan positif: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.positiveCount} dari 3 siklus</strong></span>
+                    <div className="w-5 h-5 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 font-bold">➔</div>
+                    <span>Arah hubungan positif: <strong className="text-slate-900">3 dari 3 siklus</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
-                    <CheckCircle2 size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Signifikan pada α = 0,05: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.sigCount} dari 3 siklus</strong></span>
+                    <CheckCircle2 size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>Signifikan pada α = 0,05: <strong className="text-slate-900">2 dari 3 siklus</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
-                    <BarChart3 size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Rentang Pearson r: <strong className="text-slate-900">{comparisonAnalytics.h1Summary.rangeRStr}</strong></span>
+                    <BarChart3 size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>Rentang Pearson r: <strong className="text-slate-900">0,152–0,423</strong></span>
                   </div>
                   <div className="border-t border-slate-100 pt-3 text-slate-600 leading-relaxed font-normal">
                     <p className="flex items-start gap-2">
                       <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>{comparisonAnalytics.h1Summary.textInterpretation}</span>
+                      <span>Hubungan TDS–tegangan cenderung positif pada semua siklus, tetapi kekuatannya bervariasi dan hanya signifikan pada S1 dan S3.</span>
                     </p>
                   </div>
                 </div>
@@ -2179,29 +2357,45 @@ export default function DataPenelitianPage() {
             {/* H2 Table */}
             <Card className="lg:col-span-7 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
               <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
-                H2 — Kinerja Prediksi Regresi Linier
+                H2 — Evaluasi Prediksi Regresi Linier
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3 font-semibold">Siklus</th>
-                      <th className="py-2.5 px-3 font-semibold">R²</th>
-                      <th className="py-2.5 px-3 font-semibold">Prediksi Terakhir Pra-Target</th>
+                      <th className="py-2.5 px-3 font-semibold">Slope 8 Titik</th>
+                      <th className="py-2.5 px-3 font-semibold">R² Window</th>
+                      <th className="py-2.5 px-3 font-semibold">Prediksi Pra-Target</th>
                       <th className="py-2.5 px-3 font-semibold">Waktu Target Teramati</th>
-                      <th className="py-2.5 px-3 font-semibold">Error Absolut</th>
+                      <th className="py-2.5 px-3 font-semibold">Evaluasi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                    {comparisonAnalytics.analyzedCycles.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3 px-3 font-bold text-sky-700">{row.id}</td>
-                        <td className="py-3 px-3 font-mono font-bold text-sky-700">{row.r2Str}</td>
-                        <td className="py-3 px-3 font-mono">{row.predPraTargetStr}</td>
-                        <td className="py-3 px-3 font-mono">{row.waktuTargetStr}</td>
-                        <td className="py-3 px-3 font-mono">{row.errorAbsStr}</td>
-                      </tr>
-                    ))}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S1</td>
+                      <td className="py-3 px-3 font-mono">+0,458 mg/L/jam</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,198</td>
+                      <td className="py-3 px-3 font-mono">—</td>
+                      <td className="py-3 px-3 font-mono">—</td>
+                      <td className="py-3 px-3">Target tidak tercapai; akurasi tidak tervalidasi</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S2</td>
+                      <td className="py-3 px-3 font-mono">+1,049 mg/L/jam</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,387</td>
+                      <td className="py-3 px-3 font-mono">—</td>
+                      <td className="py-3 px-3 font-mono">42 jam</td>
+                      <td className="py-3 px-3">Model tidak mengantisipasi crossing target</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-sky-700">S3</td>
+                      <td className="py-3 px-3 font-mono">+0,131 mg/L/jam</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">0,108</td>
+                      <td className="py-3 px-3 font-mono">—</td>
+                      <td className="py-3 px-3 font-mono">24 jam</td>
+                      <td className="py-3 px-3">Model tidak mengantisipasi crossing target</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -2215,26 +2409,24 @@ export default function DataPenelitianPage() {
                 </h3>
                 <div className="space-y-3 text-xs text-slate-700 font-medium">
                   <div className="flex items-center gap-2.5">
-                    <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Rentang R²: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.rangeR2Str}</strong></span>
+                    <Target size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>Prediksi pra-target valid: <strong className="text-slate-900">0 dari 3 siklus</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
-                    <Target size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Rata-rata R²: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.avgR2Str}</strong></span>
+                    <CheckCircle2 size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>Target aktual teramati: <strong className="text-slate-900">2 dari 3 siklus</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
-                    <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>Rentang Error Prediksi: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.rangeErrorStr}</strong></span>
+                    <BarChart3 size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>Rentang R² window evaluasi: <strong className="text-slate-900">0,108–0,387</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5 border-t border-slate-100 pt-2.5">
-                    <Clock size={15} className="text-sky-600 flex-shrink-0" />
-                    <span>MAE Prediksi Waktu: <strong className="text-slate-900">{comparisonAnalytics.h2Summary.maeStr}</strong></span>
+                    <Clock size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>MAE prediksi waktu: <strong className="text-slate-900">tidak dihitung</strong></span>
                   </div>
-                  <div className="border-t border-slate-100 pt-3 text-slate-600 leading-relaxed font-normal">
-                    <p className="flex items-start gap-2">
-                      <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                      <span>{comparisonAnalytics.h2Summary.textInterpretation}</span>
-                    </p>
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-900 text-xs font-semibold flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-xs mt-0.5">!</div>
+                    <span className="leading-snug">Regresi linier 8 titik belum memberikan estimasi pra-target yang konsisten. H2 belum didukung oleh hasil akhir.</span>
                   </div>
                 </div>
               </div>
@@ -2254,7 +2446,19 @@ export default function DataPenelitianPage() {
                   </div>
                   <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Pengolahan TDS</h4>
                   <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Rata-rata penurunan TDS ketiga siklus sebesar {comparisonAnalytics.threeCycleSummary.avgReductionPct}, dengan rata-rata waktu mencapai target operasional TDS ≤1.000 mg/L sebesar {comparisonAnalytics.threeCycleSummary.avgTargetTime}.
+                    Penurunan maksimum tertinggi terjadi pada Siklus 2 sebesar 12,33%.
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+                <div>
+                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
+                    <Target size={20} />
+                  </div>
+                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Target Operasional</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Siklus 2 dan Siklus 3 sempat mencapai target TDS ≤ 1.000 mg/L; Siklus 1 belum.
                   </p>
                 </div>
               </Card>
@@ -2266,19 +2470,7 @@ export default function DataPenelitianPage() {
                   </div>
                   <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Tegangan MFC</h4>
                   <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Tegangan selama tiga siklus berada pada rentang {comparisonAnalytics.threeCycleSummary.voltageRange}.
-                  </p>
-                </div>
-              </Card>
-
-              <Card className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
-                <div>
-                  <div className="w-9 h-9 rounded-lg bg-sky-100/80 text-sky-600 flex items-center justify-center mb-3">
-                    <Activity size={20} />
-                  </div>
-                  <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Hubungan TDS–Tegangan (H1)</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Hubungan positif ditemukan pada {comparisonAnalytics.threeCycleSummary.h1PosCount} dari 3 siklus dan signifikan pada {comparisonAnalytics.threeCycleSummary.h1SigCount} dari 3 siklus, dengan rentang Pearson r {comparisonAnalytics.threeCycleSummary.h1Range}.
+                    Rentang tegangan keseluruhan berada pada 0,397–0,653 V, dengan nilai tertinggi pada awal Siklus 3.
                   </p>
                 </div>
               </Card>
@@ -2290,20 +2482,15 @@ export default function DataPenelitianPage() {
                   </div>
                   <h4 className="font-display font-bold text-slate-900 text-sm mb-2">Prediksi Regresi (H2)</h4>
                   <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Model menghasilkan MAE prediksi waktu {comparisonAnalytics.threeCycleSummary.mae}, dengan R² Siklus 1 = {comparisonAnalytics.threeCycleSummary.r2S1}, Siklus 2 = {comparisonAnalytics.threeCycleSummary.r2S2}, dan Siklus 3 = {comparisonAnalytics.threeCycleSummary.r2S3}.
+                    Model regresi linier belum menghasilkan estimasi pra-target yang valid dan konsisten.
                   </p>
                 </div>
               </Card>
             </div>
 
-            <p className="text-xs text-slate-500 font-semibold mt-4">
-              Catatan: Target operasional penelitian dibatasi pada parameter TDS ≤1.000 mg/L.
+            <p className="text-xs text-slate-500 font-semibold mt-4 text-center">
+              Catatan: visualisasi ini menggunakan data audit final Siklus 1–3. Target operasional TDS penelitian ditetapkan pada ≤ 1.000 mg/L.
             </p>
-          </div>
-
-          {/* 7. Footer Bar */}
-          <div className="pt-6 border-t border-slate-200 text-center text-xs font-semibold text-slate-500">
-            Target Operasional: TDS ≤1.000 mg/L &nbsp;|&nbsp; α = 0,05 &nbsp;|&nbsp; Sumber data: Siklus 1–3
           </div>
         </div>
       )}
