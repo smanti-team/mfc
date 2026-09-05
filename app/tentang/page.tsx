@@ -39,8 +39,8 @@ export default function TentangPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 mb-8 sm:mb-10">
         {/* LEFT — Text */}
         <div>
-          <p className="font-mono text-xs text-sky-600 font-semibold tracking-[0.2em] uppercase mb-2">
-            Tentang Proyek
+          <p className="text-sky-600 text-xs sm:text-sm font-semibold mb-1">
+            Selamat datang di
           </p>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
             <TypewriterText text="Tentang SMART-MFC" />
