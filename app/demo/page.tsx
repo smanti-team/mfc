@@ -200,17 +200,10 @@ export default function LiveDemoPage() {
     }
   }, []);
 
-  // Polling Data Setiap 4 Detik saat Sesi BERJALAN
+  // Fetch Data dari REST API saat komponen di-mount / browser di-refresh (TANPA POLLING INTERVAL)
   useEffect(() => {
     loadApiData();
-    if (!isRunning) return;
-
-    const interval = setInterval(() => {
-      loadApiData();
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [isRunning, loadApiData]);
+  }, [loadApiData]);
 
   // Siapkan Data Riwayat - MURNI DARI API SAJA, TIDAK ADA DUMMY
   const historyData = useMemo(() => {
@@ -587,7 +580,7 @@ export default function LiveDemoPage() {
 
           <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
             <Clock size={13} className="text-slate-400" />
-            <span>{hasData ? "Waktu Nyata (Interval Polling: 4 detik)" : "Menunggu Data Masuk"}</span>
+            <span>{hasData ? "Waktu Nyata (Pembaruan via Refresh Browser)" : "Menunggu Data Masuk"}</span>
           </div>
         </div>
 
@@ -681,7 +674,7 @@ export default function LiveDemoPage() {
 
           <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
             <Clock size={13} className="text-slate-400" />
-            <span>{hasData ? "Waktu Nyata (Interval Polling: 4 detik)" : "Menunggu Data Masuk"}</span>
+            <span>{hasData ? "Waktu Nyata (Pembaruan via Refresh Browser)" : "Menunggu Data Masuk"}</span>
           </div>
         </div>
       </div>
@@ -750,8 +743,8 @@ export default function LiveDemoPage() {
               <Info size={15} className="text-sky-600 mt-0.5 flex-shrink-0" />
               <p className="text-[10.5px] text-slate-600 leading-relaxed font-medium">
                 {isRunning
-                  ? "Sesi demo terhubung ke REST API Cloudflare D1. Polling telemetri aktif setiap 4 detik."
-                  : "Sesi demo dijeda. Klik Mulai Demo untuk mengaktifkan kembali polling API."}
+                  ? "Sesi demo terhubung ke REST API Cloudflare D1. Data diperbarui saat browser di-refresh."
+                  : "Sesi demo dijeda."}
               </p>
             </div>
           </div>

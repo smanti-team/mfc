@@ -1065,7 +1065,7 @@ export default function MicroEnergyModule() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [latestV, setLatestV] = useState<number | null>(null);
 
-  // Poll API for live voltage
+  // Fetch API for live voltage on mount (without polling interval)
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -1079,10 +1079,8 @@ export default function MicroEnergyModule() {
       }
     };
     load();
-    const interval = setInterval(load, 5000);
     return () => {
       mounted = false;
-      clearInterval(interval);
     };
   }, []);
 
