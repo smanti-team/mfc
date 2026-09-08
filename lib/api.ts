@@ -14,11 +14,7 @@ function getBaseUrl(providedUrl?: string) {
   }
   
   if (!base) {
-    base = process.env.NEXT_PUBLIC_MFC_API_URL || "";
-  }
-  
-  if (!base) {
-    throw new Error("Worker API URL is missing. Please provide it by logging in.");
+    base = process.env.NEXT_PUBLIC_MFC_API_URL || "https://mfc-d1-api.derylchrist08.workers.dev";
   }
   
   return base;
@@ -26,15 +22,36 @@ function getBaseUrl(providedUrl?: string) {
 
 export async function fetchSummary(limit = 20, baseUrl?: string): Promise<Summary> {
   const url = getBaseUrl(baseUrl);
-  const res = await fetch(`${url}/summary?limit=${limit}`, {
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${url}/summary?limit=${limit}`, {
+      cache: "no-store",
+    });
 
-  if (!res.ok) {
-    throw new Error(`API request failed with status ${res.status}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (directErr) {
+    if (typeof window !== "undefined") {
+      try {
+        const localRes = await fetch(`/api/summary?limit=${limit}`, { cache: "no-store" });
+        if (localRes.ok) {
+          return await localRes.json();
+        }
+      } catch {
+        // ignore and rethrow direct error
+      }
+    }
+    throw directErr;
   }
 
-  return res.json();
+  if (typeof window !== "undefined") {
+    const localRes = await fetch(`/api/summary?limit=${limit}`, { cache: "no-store" });
+    if (localRes.ok) {
+      return await localRes.json();
+    }
+  }
+
+  throw new Error(`API request failed`);
 }
 
 export async function fetchLatest(baseUrl?: string): Promise<{ latest: Reading | null }> {

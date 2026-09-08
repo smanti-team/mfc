@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PlayCircle, History, LineChart, Info, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, History, LineChart, Info, Menu, X, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 export default function Header() {
@@ -12,7 +12,6 @@ export default function Header() {
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Live Demo", href: "/demo", icon: PlayCircle },
     { name: "Riwayat Pengolahan", href: "/riwayat", icon: History },
     { name: "Data Penelitian", href: "/data", icon: LineChart },
     { name: "Tentang SMART-MFC", href: "/tentang", icon: Info },
@@ -47,7 +46,7 @@ export default function Header() {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-1 h-full pt-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href === "/demo" && pathname === "/live-demo");
+            const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
               <Link
@@ -99,7 +98,7 @@ export default function Header() {
         <div className="md:hidden border-t border-sky-900/10 bg-white/95 backdrop-blur-xl px-4 pt-3 pb-5 shadow-2xl animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-col gap-1.5">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href === "/demo" && pathname === "/live-demo");
+              const isActive = pathname === item.href;
               const Icon = item.icon;
               return (
                 <Link
