@@ -88,7 +88,7 @@ export default function RiwayatPage() {
     loadData();
   }, [loadData]);
 
-  // Transform Siklus 1 into Hardcoded Batch 001, and Live API into Batch 002
+  // Transform Siklus 1, 2, & 3 into Hardcoded Batches, and Live API into 'Live Demo' Batch
   const { batchList, chartData, stats } = useMemo(() => {
     // HARDCODED Batch 001 - S1
     const batch001: BatchRecord = {
@@ -103,16 +103,44 @@ export default function RiwayatPage() {
       isUji: false,
     };
 
-    let batch002: BatchRecord | null = null;
+    // HARDCODED Batch 002 - S2 (Data Audit Penelitian Siklus 2)
+    const batch002: BatchRecord = {
+      id: "Batch 002 — S2",
+      start: "24 Agu 2026, 16.25",
+      end: "29 Agu 2026, 16.27",
+      tdsStart: 1050.00,
+      tdsEnd: 1108.98,
+      duration: "120 jam 02 mnt",
+      status: "SELESAI",
+      notes: "Siklus 2 (Data Historis Terkunci)",
+      isUji: false,
+    };
+
+    // HARDCODED Batch 003 - S3 (Data Audit Penelitian Siklus 3)
+    const batch003: BatchRecord = {
+      id: "Batch 003 — S3",
+      start: "29 Agu 2026, 17.25",
+      end: "03 Sep 2026, 17.26",
+      tdsStart: 1002.50,
+      tdsEnd: 1004.50,
+      duration: "120 jam 01 mnt",
+      status: "SELESAI",
+      notes: "Siklus 3 (Data Historis Terkunci)",
+      isUji: false,
+    };
+
+    let batchLiveDemo: BatchRecord | null = null;
     
-    // Filter fresh data for Siklus 2 (after 24 Aug 15:01)
-    const cutoffTime = new Date("2026-08-24T15:01:00").getTime();
+    // Filter fresh telemetry data for Live Demo (after Siklus 3 ended on 03 Sep 17:26)
+    const cutoffTime = new Date("2026-09-03T17:27:00").getTime();
     const freshData = summary.history ? summary.history.filter((item) => {
       return parseTimestamp(item.timestamp).getTime() > cutoffTime;
     }) : [];
 
-    if (freshData.length > 0) {
-      const sorted = [...freshData].sort(
+    const liveDataToUse = freshData.length > 0 ? freshData : (summary.history || []);
+
+    if (liveDataToUse.length > 0) {
+      const sorted = [...liveDataToUse].sort(
         (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
       );
 
@@ -130,34 +158,33 @@ export default function RiwayatPage() {
       const tdsStart = firstRecord.tds != null ? Number(firstRecord.tds.toFixed(2)) : 0;
       const tdsEnd = lastRecord.tds != null ? Number(lastRecord.tds.toFixed(2)) : 0;
 
-      batch002 = {
-        id: "Batch 002 — S2",
+      batchLiveDemo = {
+        id: "Live Demo",
         start: formatFullDateTime(firstRecord.timestamp),
         end: "—", // Always running until explicitly finished
         tdsStart,
         tdsEnd,
         duration: durationStr === "0 mnt" ? "0 jam 00 mnt" : durationStr,
-        status: "BERJALAN", // Forced to always be BERJALAN
-
-        notes: "Siklus 2 (Live Telemetri Reaktor Utama)",
-        isUji: false,
+        status: "BERJALAN",
+        notes: "Live Demo (Telemetri Terintegrasi D1 API)",
+        isUji: true,
       };
     } else {
-      batch002 = {
-        id: "Batch 002 — S2",
+      batchLiveDemo = {
+        id: "Live Demo",
         start: "—",
         end: "—",
         tdsStart: 0,
         tdsEnd: 0,
         duration: "—",
         status: "BERJALAN",
-        notes: "Siklus 2 (Menunggu Telemetri Live ESP32)",
-        isUji: false,
+        notes: "Live Demo (Menunggu Telemetri Live ESP32)",
+        isUji: true,
       };
     }
 
-    // Display newer batch first
-    const displayBatches: BatchRecord[] = [batch002, batch001];
+    // Display newer batch first: Live Demo at top, then Siklus 3, 2, 1
+    const displayBatches: BatchRecord[] = [batchLiveDemo, batch003, batch002, batch001];
 
     // Chart data for TDS change (%)
     const chart = displayBatches.map((b) => {
@@ -173,6 +200,7 @@ export default function RiwayatPage() {
     const completedCount = displayBatches.filter((b) => b.status === "SELESAI").length;
     const runningCount = displayBatches.filter((b) => b.status === "BERJALAN").length;
     const completedPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const activeRunningBatch = displayBatches.find((b) => b.status === "BERJALAN");
 
     return {
       batchList: displayBatches,
@@ -181,8 +209,9 @@ export default function RiwayatPage() {
         total: totalCount,
         completed: completedCount,
         running: runningCount,
-        avgDuration: "—",
+        avgDuration: "120 jam 01 mnt",
         completedPercent: completedPct,
+        activeRunningBatchId: activeRunningBatch?.id || null,
       },
     };
   }, [summary.history]);
@@ -289,7 +318,7 @@ export default function RiwayatPage() {
               </span>
             </div>
             <p className="text-[11px] text-muted mt-2 uppercase tracking-wider">
-              {selectedBatch?.id ? `${selectedBatch.id.toUpperCase()} SEDANG AKTIF` : "BATCH 001 — S1 SEDANG AKTIF"}
+              {stats.activeRunningBatchId ? `${stats.activeRunningBatchId.toUpperCase()} SEDANG AKTIF` : "SEMUA BATCH SELESAI"}
             </p>
           </div>
         </MagneticCard>
@@ -300,8 +329,8 @@ export default function RiwayatPage() {
             <h3 className="text-sm font-medium text-fog">Rata-rata Durasi</h3>
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-[64px] leading-none font-bold text-signal tracking-tight drop-shadow-[0_0_15px_rgba(74,222,148,0.5)]">
+            <div className="flex items-center min-h-[64px]">
+              <span className="font-display text-2xl sm:text-3xl xl:text-[32px] font-bold text-signal tracking-tight drop-shadow-[0_0_15px_rgba(74,222,148,0.5)] leading-tight">
                 {stats.avgDuration}
               </span>
             </div>
@@ -382,7 +411,7 @@ export default function RiwayatPage() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-muted">ID Batch</p>
-                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "Batch 001 — S1"}</p>
+                <p className="font-mono text-sm font-bold text-fog">{selectedBatch?.id || "Live Demo"}</p>
               </div>
             </div>
 
@@ -433,7 +462,7 @@ export default function RiwayatPage() {
                   <CheckCircle2 size={14} /> Catatan
                 </div>
                 <div className="text-muted leading-relaxed">
-                  {selectedBatch?.notes || "Siklus 1 (Live Telemetri Reaktor Utama)"}
+                  {selectedBatch?.notes || "Live Demo (Telemetri Terintegrasi D1 API)"}
                 </div>
               </div>
             </div>

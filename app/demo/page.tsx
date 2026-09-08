@@ -12,15 +12,12 @@ import {
   Database,
   Clock,
   Droplet,
-  Target,
   TrendingDown,
   Info,
-  Hourglass,
   LineChart as ChartIcon,
   Zap,
-  FlaskConical,
   Wifi,
-  WifiOff,
+  FlaskConical,
   Check,
   Flag,
 } from "lucide-react";
@@ -109,11 +106,11 @@ function calculatePearsonCorrelation(readings: CycleReading[]) {
   if (n < 3) {
     return {
       r: 0,
-      rStr: "0,000",
+      rStr: "—",
       pValue: 1,
-      pValueStr: "1,000",
+      pValueStr: "—",
       n,
-      interpretation: "Data belum cukup untuk analisis korelasi (minimal 3 data).",
+      interpretation: "Data belum cukup untuk analisis korelasi (minimal 3 data dari database).",
     };
   }
 
@@ -208,27 +205,8 @@ function formatDate(ts: string | number): string {
 
 function formatTime(ts: string | number): string {
   const d = parseTimestamp(ts);
-  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(/:/g, ".");
 }
-
-const RenderScatterDotWithLabel = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (cx == null || cy == null || !payload) return <g />;
-
-  return (
-    <g className="group cursor-pointer">
-      <circle
-        cx={cx}
-        cy={cy}
-        r={5}
-        fill="#16A34A"
-        stroke="#FFFFFF"
-        strokeWidth={1.5}
-        className="transition-transform duration-200 hover:scale-150"
-      />
-    </g>
-  );
-};
 
 const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) => {
   const [displayedText, setDisplayedText] = useState("");
@@ -252,31 +230,35 @@ const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) 
 };
 
 export default function LiveDemoPage() {
+  // Pure database state: Initial state is completely empty with ZERO dummy data
   const [summary, setSummary] = useState<Summary>({ latest: null, history: [] });
   const [error, setError] = useState<string | null>(null);
   const [isApiConnected, setIsApiConnected] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Poll live data from API
+  // Load telemetry data strictly from the database via REST API
   const loadSummaryData = async () => {
     try {
-      const data = await fetchSummary(100, "https://mfc-d1-api.derylchrist08.workers.dev");
+      setIsLoading(true);
+      const data = await fetchSummary(100);
       setSummary(data);
       setIsApiConnected(true);
       setError(null);
     } catch (err: any) {
       setIsApiConnected(false);
-      setError(err?.message || "Gagal memuat telemetri");
+      setError(err?.message || "Gagal menghubungkan ke REST API telemetri");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    // Initial fetch on mount (strictly no 4-second polling loop)
     loadSummaryData();
-    const interval = setInterval(loadSummaryData, 4000);
-    return () => clearInterval(interval);
   }, []);
 
-  // Sorted history chronologically
+  // Sorted history chronologically from database
   const sortedHistory = useMemo(() => {
     if (!summary.history || summary.history.length === 0) return [];
     return [...summary.history].sort(
@@ -284,13 +266,14 @@ export default function LiveDemoPage() {
     );
   }, [summary.history]);
 
-  // Map into single demo dataset with interval 1 hour
+  // Map database entries directly into demo readings (interval 1 jam per langkah data)
+  // If database is empty, demoReadings is strictly an empty array []
   const demoReadings: CycleReading[] = useMemo(() => {
     if (sortedHistory.length === 0) return [];
     return sortedHistory.map((d, index) => {
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.2;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0;
       return {
-        hour: index, // interval 1 jam per langkah data
+        hour: index,
         actualTime: `${formatDate(d.timestamp)} ${formatTime(d.timestamp)}`,
         tds: d.tds != null ? Number(d.tds.toFixed(2)) : 0,
         voltage: Number(v.toFixed(3)),
@@ -299,24 +282,50 @@ export default function LiveDemoPage() {
     });
   }, [sortedHistory]);
 
-  // Baseline and latest readings
-  const baselineTds = demoReadings.length > 0 ? demoReadings[0].tds : 0;
+  // Baseline and latest readings directly from database
+  const baselineTds = demoReadings.length > 0 ? demoReadings[0].tds : null;
   const latestReading = demoReadings.length > 0 ? demoReadings[demoReadings.length - 1] : null;
 
   // Penurunan akhir dari data pertama (%)
-  const overallReductionPct =
-    baselineTds > 0 && latestReading
-      ? ((baselineTds - latestReading.tds) / baselineTds) * 100
-      : 0;
+  const overallReductionPct = useMemo(() => {
+    if (baselineTds != null && baselineTds > 0 && latestReading != null) {
+      return ((baselineTds - latestReading.tds) / baselineTds) * 100;
+    }
+    return null;
+  }, [baselineTds, latestReading]);
 
-  // Voltage range
-  const voltages = demoReadings.map((r) => r.voltage);
-  const minVolt = voltages.length > 0 ? Math.min(...voltages) : 0;
-  const maxVolt = voltages.length > 0 ? Math.max(...voltages) : 0;
+  // Voltages from database
+  const voltages = useMemo(() => demoReadings.map((r) => r.voltage), [demoReadings]);
+  const minVolt = voltages.length > 0 ? Math.min(...voltages) : null;
+  const maxVolt = voltages.length > 0 ? Math.max(...voltages) : null;
 
-  // Linear Regression
-  const regressionResult = useMemo(() => {
-    return calculateTdsRegression(demoReadings);
+  // Linear Regression (only computed from database records, no dummy fallback)
+  const regressionDisplay = useMemo(() => {
+    if (demoReadings.length < 3) {
+      return {
+        status: "Data belum cukup (menunggu data database)",
+        slope: "—",
+        rSquared: "—",
+        observedTime: "—",
+        estimatedTime: "—",
+        error: "—",
+      };
+    }
+
+    const reg = calculateTdsRegression(demoReadings);
+    const sign = reg.a >= 0 ? "+" : "-";
+    const slopeStr = `${sign}${Math.abs(reg.a).toFixed(3).replace(".", ",")} mg/L/jam`;
+    const isTargetReached = demoReadings.some((r) => r.tds <= 1000);
+    const firstTargetIdx = demoReadings.findIndex((r) => r.tds <= 1000);
+
+    return {
+      status: isTargetReached ? "Target TDS ≤ 1.000 mg/L tercapai" : (reg.isValid ? "Dalam proses estimasi" : "Data belum cukup"),
+      slope: slopeStr,
+      rSquared: reg.rSquared.toFixed(2).replace(".", ","),
+      observedTime: isTargetReached ? `Jam ke-${firstTargetIdx}` : "—",
+      estimatedTime: isTargetReached ? "Target telah tercapai" : reg.remainingStr,
+      error: reg.errorStr,
+    };
   }, [demoReadings]);
 
   // Pearson Correlation
@@ -324,14 +333,9 @@ export default function LiveDemoPage() {
     return calculatePearsonCorrelation(demoReadings);
   }, [demoReadings]);
 
-  // Target Reading (first reading <= 1000 mg/L)
-  const targetReadingFirst = useMemo(() => {
-    return demoReadings.find((r) => r.tds <= 1000);
-  }, [demoReadings]);
-
   // Scatter Data: X = % Penurunan TDS, Y = Tegangan V
   const scatterData = useMemo(() => {
-    if (demoReadings.length === 0 || baselineTds === 0) return [];
+    if (demoReadings.length === 0 || baselineTds == null || baselineTds === 0) return [];
     return demoReadings.map((r) => {
       const reductionPct = ((baselineTds - r.tds) / baselineTds) * 100;
       return {
@@ -342,24 +346,35 @@ export default function LiveDemoPage() {
   }, [demoReadings, baselineTds]);
 
   const sortedScatterData = useMemo(() => {
-    const list = [...scatterData].sort((a, b) => a.x - b.x);
-    return list.map((item, idx) => ({
-      ...item,
-      labelPos: idx % 2 === 0 ? "above" : "below",
-    }));
+    if (scatterData.length === 0) return [];
+    return [...scatterData].sort((a, b) => a.x - b.x);
   }, [scatterData]);
 
   const minScatterX = useMemo(() => {
-    if (sortedScatterData.length === 0) return 0;
+    if (sortedScatterData.length === 0) return -10;
     const min = Math.min(...sortedScatterData.map((d) => d.x));
-    return Math.floor(min - 1);
+    return Math.floor(min - 2);
   }, [sortedScatterData]);
 
   const maxScatterX = useMemo(() => {
     if (sortedScatterData.length === 0) return 10;
     const max = Math.max(...sortedScatterData.map((d) => d.x));
-    return Math.ceil(max + 1);
+    return Math.ceil(max + 2);
   }, [sortedScatterData]);
+
+  // Dedicated Y-Axis Domain for Scatter Plot to clearly display voltage variation
+  const scatterVoltDomain = useMemo(() => {
+    if (scatterData.length === 0) return [0.43, 0.47];
+    const vals = scatterData.map((d) => d.y);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const span = max - min || 0.02;
+    const pad = span * 0.18;
+    return [
+      Number((min - pad).toFixed(3)),
+      Number((max + pad).toFixed(3)),
+    ];
+  }, [scatterData]);
 
   // Linear Trendline Data for Scatter Plot
   const trendlineData = useMemo(() => {
@@ -393,49 +408,40 @@ export default function LiveDemoPage() {
     ];
   }, [scatterData, minScatterX, maxScatterX]);
 
-  // Chart data fallbacks
+  // Chart Data: If database has NO data, this is strictly [] so chart remains empty
   const demoChartData = useMemo(() => {
-    if (demoReadings.length > 0) return demoReadings;
-    return [
-      { hour: 0, tds: 1000, voltage: 0.3 },
-      { hour: 1, tds: 1000, voltage: 0.3 },
-      { hour: 2, tds: 1000, voltage: 0.3 },
-      { hour: 3, tds: 1000, voltage: 0.3 },
-    ];
+    return demoReadings;
   }, [demoReadings]);
 
   // Dynamic Y-Axis Domains
   const demoTdsDomain = useMemo(() => {
-    if (demoReadings.length === 0) return [0, 1200];
-    const vals = demoReadings
-      .map((d) => d.tds)
-      .filter((v): v is number => typeof v === "number" && !isNaN(v) && v > 0);
-    if (vals.length === 0) return [0, 1200];
+    if (demoReadings.length === 0) return [350, 1250];
+    const vals = demoReadings.map((d) => d.tds).filter((v) => typeof v === "number" && !isNaN(v) && v > 0);
+    if (vals.length === 0) return [350, 1250];
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const minDomain = Math.max(0, Math.floor((min - 50) / 50) * 50);
-    const maxDomain = Math.max(1050, Math.ceil((max + 50) / 50) * 50);
+    const maxDomain = Math.max(1250, Math.ceil((max + 50) / 50) * 50);
     return [minDomain, maxDomain];
   }, [demoReadings]);
 
   const demoVoltDomain = useMemo(() => {
     if (demoReadings.length === 0) return [0, 0.7];
-    const vals = demoReadings
-      .map((d) => d.voltage)
-      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+    const vals = demoReadings.map((d) => d.voltage).filter((v) => typeof v === "number" && !isNaN(v));
     if (vals.length === 0) return [0, 0.7];
     const max = Math.max(...vals);
     const maxDomain = Math.max(0.7, Number((Math.ceil((max + 0.1) * 10) / 10).toFixed(2)));
     return [0, maxDomain];
   }, [demoReadings]);
 
-  // Pagination for Demo Table (Max 6 rows per page)
+  // Pagination for Demo Table (6 rows per page)
   const rowsPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(demoReadings.length / rowsPerPage));
   const startIdx = (currentPage - 1) * rowsPerPage;
   const endIdx = startIdx + rowsPerPage;
   const visibleDemoReadings = demoReadings.slice(startIdx, endIdx);
 
+  // Empty placeholder rows when database is not yet populated
   const placeholderTableRows = useMemo(() => {
     return [
       { hour: 0, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
@@ -453,9 +459,11 @@ export default function LiveDemoPage() {
 
   // Download CSV function
   const handleDownloadCSV = () => {
+    if (demoReadings.length === 0) return;
     let csv = "\uFEFFJam ke-;Waktu Aktual;TDS (mg/L);Penurunan TDS (%);Tegangan (V);Status Data\n";
     demoReadings.forEach((r) => {
-      const pct = baselineTds > 0 ? ((baselineTds - r.tds) / baselineTds) * 100 : 0;
+      const base = baselineTds ?? r.tds;
+      const pct = base > 0 ? ((base - r.tds) / base) * 100 : 0;
       const jam = r.actualTime ? r.actualTime.replace(/:/g, ".") : "—";
       const tds = r.tds.toFixed(2).replace(".", ",");
       const pctStr = pct.toFixed(2).replace(".", ",") + "%";
@@ -491,7 +499,7 @@ export default function LiveDemoPage() {
             variant={!isApiConnected || error ? "warning" : "outline-green"}
             icon={!isApiConnected || error ? <FlaskConical size={14} /> : <Wifi size={14} />}
           >
-            {!isApiConnected || error ? "MODE SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
+            {!isApiConnected || error ? "API TIDAK TERHUBUNG" : "TERHUBUNG D1 API (LIVE)"}
           </Badge>
         </div>
       </div>
@@ -499,7 +507,7 @@ export default function LiveDemoPage() {
       {error && (
         <div className="mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-sm shadow-sm backdrop-blur-md flex items-center gap-3">
           <FlaskConical className="text-amber-600 flex-shrink-0" size={18} />
-          <span>Perhatian: {error}. Menampilkan data telemetri tersimpan.</span>
+          <span>Perhatian: {error}. Menunggu data masuk dari database.</span>
         </div>
       )}
 
@@ -553,7 +561,7 @@ export default function LiveDemoPage() {
             </div>
             <div className="my-auto py-1">
               <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
-                {demoReadings.length > 0 ? `${overallReductionPct.toFixed(2).replace(".", ",")}%` : "—"}
+                {overallReductionPct != null ? `${overallReductionPct.toFixed(2).replace(".", ",")}%` : "—"}
               </div>
             </div>
             <div>
@@ -573,7 +581,7 @@ export default function LiveDemoPage() {
             </div>
             <div className="my-auto py-1">
               <div className="font-display text-2xl sm:text-3xl font-extrabold text-sky-600 tracking-tight">
-                {demoReadings.length > 0
+                {minVolt != null && maxVolt != null
                   ? `${minVolt.toFixed(3).replace(".", ",")} – ${maxVolt.toFixed(3).replace(".", ",")} V`
                   : "—"}
               </div>
@@ -673,17 +681,19 @@ export default function LiveDemoPage() {
                       position: "insideTopLeft",
                     }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="tds"
-                    name="TDS (mg/L)"
-                    stroke="#0284C7"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorTdsDemo)"
-                    dot={{ fill: "#0284C7", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, fill: "#0284C7" }}
-                  />
+                  {demoChartData.length > 0 && (
+                    <Area
+                      type="monotone"
+                      dataKey="tds"
+                      name="TDS (mg/L)"
+                      stroke="#0284C7"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#colorTdsDemo)"
+                      dot={{ fill: "#0284C7", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, fill: "#0284C7" }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -766,17 +776,19 @@ export default function LiveDemoPage() {
                       return null;
                     }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="voltage"
-                    name="Tegangan (V)"
-                    stroke="#16A34A"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorVoltDemo)"
-                    dot={{ fill: "#16A34A", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, fill: "#16A34A" }}
-                  />
+                  {demoChartData.length > 0 && (
+                    <Area
+                      type="monotone"
+                      dataKey="voltage"
+                      name="Tegangan (V)"
+                      stroke="#16A34A"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#colorVoltDemo)"
+                      dot={{ fill: "#16A34A", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, fill: "#16A34A" }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -794,57 +806,69 @@ export default function LiveDemoPage() {
                 </h3>
                 <button
                   onClick={handleDownloadCSV}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
+                  disabled={demoReadings.length === 0}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors ${
+                    demoReadings.length > 0
+                      ? "text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100"
+                      : "text-slate-400 bg-slate-50 border border-slate-200 cursor-not-allowed"
+                  }`}
                 >
                   <Download size={14} />
                   Download CSV
                 </button>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Table wrapper */}
+              <div className="overflow-x-auto rounded-xl border border-sky-900/10">
                 <table className="w-full text-xs text-left">
-                  <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                  <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-sky-900/10">
                     <tr>
-                      <th className="py-2.5 px-3 font-semibold">Jam ke-</th>
-                      <th className="py-2.5 px-3 font-semibold">Waktu Aktual</th>
-                      <th className="py-2.5 px-3 font-semibold">TDS (mg/L)</th>
-                      <th className="py-2.5 px-3 font-semibold">Penurunan TDS (%)</th>
-                      <th className="py-2.5 px-3 font-semibold">Tegangan (V)</th>
-                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                      <th className="py-2.5 px-3">Jam ke-</th>
+                      <th className="py-2.5 px-3">Waktu Aktual</th>
+                      <th className="py-2.5 px-3">TDS (mg/L)</th>
+                      <th className="py-2.5 px-3">Penurunan TDS (%)</th>
+                      <th className="py-2.5 px-3">Tegangan (V)</th>
+                      <th className="py-2.5 px-3">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                    {displayTableRows.map((row: any, idx: number) => {
-                      const isReal = row.tds != null;
-                      const pctRed =
-                        isReal && baselineTds > 0
-                          ? ((baselineTds - row.tds) / baselineTds) * 100
-                          : 0;
-                      const pctStr = isReal ? pctRed.toFixed(2).replace(".", ",") + "%" : "—";
-                      const tdsStr = isReal ? row.tds.toLocaleString("id-ID") : "—";
-                      const voltStr =
-                        row.voltage != null ? row.voltage.toFixed(3).replace(".", ",") : "—";
-
-                      let badgeStyle = "bg-slate-100 text-slate-500 border-slate-200";
-                      if (row.status === "VALID")
-                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                      if (row.status === "PERLU VERIFIKASI")
-                        badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
-                      if (row.status === "TIDAK TEREKAM")
-                        badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
-
+                  <tbody className="divide-y divide-slate-100">
+                    {displayTableRows.map((r, i) => {
+                      const base = baselineTds ?? (r.tds || 0);
+                      const pct =
+                        r.tds != null && base > 0 ? ((base - r.tds) / base) * 100 : null;
+                      const pctSign = pct != null && pct > 0 ? "+" : "";
                       return (
-                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-2.5 px-3 font-bold text-slate-900">{row.hour}</td>
-                          <td className="py-2.5 px-3 text-slate-600">{row.actualTime}</td>
-                          <td className="py-2.5 px-3 text-sky-600 font-bold">{tdsStr}</td>
-                          <td className="py-2.5 px-3 text-sky-600 font-bold">{pctStr}</td>
-                          <td className="py-2.5 px-3 text-emerald-600 font-bold">{voltStr}</td>
-                          <td className="py-2.5 px-3">
+                        <tr key={i} className="hover:bg-sky-50/30 transition-colors">
+                          <td className="py-2 px-3 font-bold text-slate-900">{r.hour}</td>
+                          <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                            {r.actualTime || "—"}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-sky-700">
+                            {r.tds != null
+                              ? Number(r.tds.toFixed(2)).toLocaleString("id-ID", {
+                                  minimumFractionDigits: 1,
+                                  maximumFractionDigits: 2,
+                                })
+                              : "—"}
+                          </td>
+                          <td className="py-2 px-3 font-medium text-slate-700">
+                            {pct != null
+                              ? `${pctSign}${pct.toFixed(2).replace(".", ",")}%`
+                              : "—"}
+                          </td>
+                          <td className="py-2 px-3 font-medium text-emerald-700">
+                            {r.voltage != null ? r.voltage.toFixed(3).replace(".", ",") : "—"}
+                          </td>
+                          <td className="py-2 px-3">
                             <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeStyle}`}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                r.status === "VALID"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : "bg-slate-50 text-slate-400 border border-slate-200"
+                              }`}
                             >
-                              {isReal ? <Check size={11} /> : null} {row.status}
+                              {r.status === "VALID" && <Check size={11} strokeWidth={3} />}
+                              {r.status}
                             </span>
                           </td>
                         </tr>
@@ -855,176 +879,159 @@ export default function LiveDemoPage() {
               </div>
             </div>
 
-            {/* Table Footer: Pagination & Subtext */}
-            <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-slate-500 font-medium">
-                  Menampilkan {demoReadings.length > 0 ? startIdx + 1 : 1}–
-                  {demoReadings.length > 0 ? Math.min(endIdx, demoReadings.length) : 6} dari{" "}
-                  {demoReadings.length > 0 ? demoReadings.length : 6} data demo
+            {/* Pagination Controls */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+              <div>
+                Menampilkan {demoReadings.length > 0 ? `${startIdx + 1}-${Math.min(endIdx, demoReadings.length)}` : "0"} dari {demoReadings.length} data demo
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded-lg border text-xs font-semibold transition-colors ${
+                    currentPage === 1
+                      ? "text-slate-300 border-slate-200 cursor-not-allowed bg-slate-50/50"
+                      : "text-slate-600 border-slate-300 hover:bg-slate-50 bg-white"
+                  }`}
+                >
+                  &larr; Sebelumnya
+                </button>
+                <span className="text-slate-700 font-bold px-1">
+                  Halaman {currentPage} dari {totalPages}
                 </span>
-                <div className="flex items-center gap-2 font-semibold">
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1 || demoReadings.length === 0}
-                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
-                  >
-                    ← Sebelumnya
-                  </button>
-                  <span className="text-slate-700 font-mono">
-                    Halaman <strong className="text-slate-900">{currentPage}</strong> dari{" "}
-                    <strong>{totalPages}</strong>
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages || demoReadings.length === 0}
-                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
-                  >
-                    Selanjutnya →
-                  </button>
-                </div>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages || demoReadings.length === 0}
+                  className={`px-3 py-1 rounded-lg border text-xs font-semibold transition-colors ${
+                    currentPage === totalPages || demoReadings.length === 0
+                      ? "text-slate-300 border-slate-200 cursor-not-allowed bg-slate-50/50"
+                      : "text-slate-600 border-slate-300 hover:bg-slate-50 bg-white"
+                  }`}
+                >
+                  Selanjutnya &rarr;
+                </button>
               </div>
+            </div>
 
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
-                <Database size={13} className="text-slate-400" />
-                <span>Sumber data: ESP32/AIO SMART-MFC • Timestamp tersimpan otomatis</span>
-              </div>
+            <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+              <span>Sumber data: ESP32/AID SMART-MFC &bull; Timestamp tersimpan otomatis</span>
             </div>
           </Card>
 
           {/* Right Card: Evaluasi Prediksi Regresi Linier */}
           <Card className="lg:col-span-5 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
             <div>
-              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
-                Evaluasi Prediksi Regresi Linier
-              </h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
+                  Evaluasi Prediksi Regresi Linier
+                </h3>
+              </div>
 
-              <div className="space-y-3 text-xs text-slate-700 font-medium">
-                <div className="flex items-center gap-2 text-sky-700 font-semibold">
-                  <Droplet size={15} className="text-sky-600 flex-shrink-0" />
-                  <span>Target Operasional TDS ≤ 1.000 mg/L</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <Info size={15} className="text-sky-600 flex-shrink-0" />
-                    Status Prediksi
+              <div className="space-y-2.5 text-xs font-medium divide-y divide-slate-100">
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Droplet size={13} className="text-sky-500" /> Target Operasional TDS &le; 1.000 mg/L
                   </span>
-                  <span
-                    className={`font-semibold ${
-                      targetReadingFirst
-                        ? "text-emerald-600"
-                        : regressionResult.isValid
-                        ? "text-sky-600"
-                        : "text-amber-600"
-                    }`}
-                  >
-                    {targetReadingFirst
-                      ? "Target TDS ≤ 1.000 mg/L tercapai"
-                      : regressionResult.isValid
-                      ? "Mengestimasi target operasional"
-                      : "Menunggu data tambahan"}
+                  <span className="font-bold text-slate-800"></span>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Info size={13} className="text-slate-400" /> Status Prediksi
+                  </span>
+                  <span className="font-bold text-emerald-600">
+                    {demoReadings.length >= 3 ? regressionDisplay.status : "Data belum cukup"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
-                    Slope regresi
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <TrendingDown size={13} className="text-sky-600" /> Slope regresi
                   </span>
                   <span className="font-mono font-bold text-sky-700">
-                    {demoReadings.length >= 3
-                      ? `${regressionResult.a >= 0 ? "+" : ""}${regressionResult.a
-                          .toFixed(3)
-                          .replace(".", ",")} mg/L/jam`
-                      : "Menunggu data"}
+                    {demoReadings.length >= 3 ? regressionDisplay.slope : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <Target size={15} className="text-sky-600 flex-shrink-0" />
-                    R² regresi
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <ChartIcon size={13} className="text-slate-400" /> R&sup2; regresi
                   </span>
                   <span className="font-mono font-bold text-sky-700">
-                    {demoReadings.length >= 3 ? regressionResult.rSquaredStr : "—"}
+                    {demoReadings.length >= 3 ? regressionDisplay.rSquared : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <Clock size={15} className="text-sky-600 flex-shrink-0" />
-                    Waktu target teramati
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Clock size={13} className="text-slate-400" /> Waktu target teramati
                   </span>
-                  <span className="font-mono font-bold text-sky-700">
-                    {targetReadingFirst
-                      ? `Jam ke-${targetReadingFirst.hour}`
-                      : demoReadings.length > 0 && demoReadings[0].tds <= 1000
-                      ? "Jam ke-0 (Sejak Awal)"
-                      : "Belum tercapai"}
+                  <span className="font-mono font-bold text-slate-800">
+                    {demoReadings.length >= 3 ? regressionDisplay.observedTime : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
-                    Estimasi time-to-target
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Clock size={13} className="text-slate-400" /> Estimasi time-to-target
                   </span>
-                  <span className="font-mono font-bold text-sky-700">
-                    {targetReadingFirst ? "Target telah tercapai" : regressionResult.remainingStr}
+                  <span className="font-mono font-bold text-emerald-600">
+                    {demoReadings.length >= 3 ? regressionDisplay.estimatedTime : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <span className="flex items-center gap-2">
-                    <Info size={15} className="text-sky-600 flex-shrink-0" />
-                    Error prediksi
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Info size={13} className="text-slate-400" /> Error prediksi
                   </span>
-                  <span className="font-mono font-bold text-sky-700">
-                    {targetReadingFirst && regressionResult.targetHourVal !== null
-                      ? `${Math.abs(targetReadingFirst.hour - regressionResult.targetHourVal)
-                          .toFixed(2)
-                          .replace(".", ",")} jam`
-                      : "—"}
+                  <span className="font-mono font-bold text-slate-800">
+                    {demoReadings.length >= 3 ? regressionDisplay.error : "—"}
                   </span>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-5 p-4 rounded-xl bg-sky-50/90 border border-sky-200 text-xs text-sky-950 space-y-1">
-                <div className="flex items-start gap-2">
-                  <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
-                  <p className="font-medium leading-relaxed">
-                    <strong>Status Live Demo:</strong> Data telemetri dipantau secara langsung per
-                    interval 1 jam. Nilai parameter regresi linier dan korelasi diperbarui secara
-                    otomatis setiap ada data baru dari ESP32.
-                  </p>
-                </div>
+            {/* Note box */}
+            <div className="mt-5 p-3 rounded-xl bg-sky-50/90 border border-sky-200/80 text-slate-700 text-xs">
+              <div className="flex items-start gap-2">
+                <Info size={15} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                <p className="leading-relaxed text-[11px] font-medium text-slate-600">
+                  <span className="font-bold text-slate-800">Status Live Demo:</span> Data telemetri dipantau secara langsung per interval 1 jam. Nilai parameter regresi linier dan korelasi diperbarui secara otomatis setiap ada data baru dari ESP32.
+                </p>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Section: Hubungan % Penurunan TDS dengan Tegangan (Scatter Plot + Pearson) */}
+        {/* Section: Scatter Plot Left & Correlation Right */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left: Scatter Plot Chart */}
+          {/* Left Card: Hubungan % Penurunan TDS dengan Tegangan */}
           <Card className="lg:col-span-8 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
-            <div className="mb-2">
-              <h3 className="font-display font-bold text-slate-900 text-base sm:text-lg">
+            <div className="mb-4">
+              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
                 Hubungan % Penurunan TDS dengan Tegangan
               </h3>
             </div>
-            <div className="h-[300px] w-full mt-4">
+
+            <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 35, right: 65, left: 15, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis
                     type="number"
                     dataKey="x"
-                    name="Penurunan TDS"
+                    name="% Penurunan TDS"
+                    unit="%"
+                    domain={[minScatterX, maxScatterX]}
                     stroke="#64748B"
                     fontSize={11}
                     tickLine={false}
                     axisLine={{ stroke: "#CBD5E1" }}
-                    domain={[minScatterX, maxScatterX]}
-                    tickFormatter={(v) => `${v}%`}
                     label={{
                       value: "% Penurunan TDS (%)",
                       position: "insideBottom",
-                      offset: -15,
+                      offset: -12,
                       fill: "#475569",
                       fontSize: 11,
                       fontWeight: 500,
@@ -1034,28 +1041,27 @@ export default function LiveDemoPage() {
                     type="number"
                     dataKey="y"
                     name="Tegangan"
+                    domain={scatterVoltDomain}
                     stroke="#64748B"
                     fontSize={11}
                     tickLine={false}
                     axisLine={{ stroke: "#CBD5E1" }}
-                    domain={["auto", "auto"]}
-                    tickFormatter={(v) => v.toFixed(3).replace(".", ",")}
-                    width={45}
+                    width={50}
+                    tickFormatter={(v) => (typeof v === "number" ? v.toFixed(3).replace(".", ",") : v)}
                   />
-                  <ZAxis type="number" range={[100, 100]} />
+                  <ZAxis range={[50, 50]} />
                   <Tooltip
                     cursor={{ strokeDasharray: "3 3" }}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        if (data.isTrendline) return null;
                         return (
-                          <div className="bg-slate-900/95 text-white p-2.5 border border-slate-700 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md">
-                            <p className="text-sky-400 font-mono font-bold">
-                              Penurunan TDS: {data.x.toFixed(2).replace(".", ",")}%
+                          <div className="bg-white/95 border border-sky-900/15 p-2.5 rounded-xl text-xs space-y-1 shadow-lg text-slate-900">
+                            <p className="font-semibold text-slate-700">
+                              Penurunan TDS: {data.x?.toFixed(2).replace(".", ",")}%
                             </p>
-                            <p className="text-emerald-400 font-mono font-bold">
-                              Tegangan MFC: {data.y.toFixed(3).replace(".", ",")} V
+                            <p className="text-emerald-700 font-bold">
+                              Tegangan: {data.y?.toFixed(3).replace(".", ",")} V
                             </p>
                           </div>
                         );
@@ -1063,115 +1069,121 @@ export default function LiveDemoPage() {
                       return null;
                     }}
                   />
-                  {/* Telemetry Scatter Points (Green Dots) */}
-                  <Scatter
-                    name="Titik Data"
-                    data={sortedScatterData}
-                    fill="#16A34A"
-                    line={false}
-                    shape={<RenderScatterDotWithLabel />}
-                  />
-                  {/* Linear Regression Line (Straight Blue Dashed Line) */}
-                  <Scatter
-                    name="Regresi Linear"
-                    data={trendlineData}
-                    line={{ stroke: "#0284C7", strokeWidth: 2, strokeDasharray: "6 6" }}
-                    shape={() => <g />}
-                    legendType="none"
-                  />
+                  {scatterData.length > 0 && (
+                    <Scatter
+                      name="Titik Data"
+                      data={scatterData}
+                      fill="#16A34A"
+                      stroke="#FFFFFF"
+                      strokeWidth={1.5}
+                    />
+                  )}
+                  {trendlineData.length > 0 && (
+                    <Scatter
+                      name="Garis Regresi"
+                      data={trendlineData}
+                      line={{ stroke: "#0284C7", strokeWidth: 2, strokeDasharray: "4 4" }}
+                      shape={() => <g />}
+                    />
+                  )}
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex items-center justify-center gap-6 mt-2 text-xs font-semibold text-slate-700">
-              <div className="flex items-center gap-1.5">
+
+            <div className="mt-3 flex items-center justify-center gap-6 text-xs text-slate-600 font-medium">
+              <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-[#16A34A]"></span>
                 <span>Titik data (n = {demoReadings.length})</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-8 border-b-2 border-dashed border-[#0284C7]"></span>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-0.5 border-t-2 border-dashed border-[#0284C7]"></span>
                 <span>Garis regresi linier</span>
               </div>
             </div>
           </Card>
 
-          {/* Right: Pearson Statistics Panel */}
+          {/* Right Card: Statistik Korelasi */}
           <Card className="lg:col-span-4 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
             <div>
-              <h3 className="font-display font-bold text-slate-900 text-base mb-4">
-                Statistik Korelasi
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <span className="font-bold text-xs text-slate-800">Pearson r</span>
-                  <span className="font-mono font-extrabold text-base text-sky-700">
+              <div className="mb-4">
+                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
+                  Statistik Korelasi
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-1 border-b border-slate-100 text-xs">
+                  <span className="text-slate-600 font-medium">Pearson r</span>
+                  <span className="font-display text-base font-extrabold text-sky-600">
                     {demoReadings.length >= 3 ? pearsonResult.rStr : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <span className="font-bold text-xs text-slate-800">p-value</span>
-                  <span className="font-mono font-extrabold text-base text-sky-700">
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100 text-xs">
+                  <span className="text-slate-600 font-medium">p-value</span>
+                  <span className="font-display text-base font-extrabold text-sky-600">
                     {demoReadings.length >= 3 ? pearsonResult.pValueStr : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <span className="font-bold text-xs text-slate-800">n (jumlah data)</span>
-                  <span className="font-mono font-extrabold text-base text-sky-700">
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100 text-xs">
+                  <span className="text-slate-600 font-medium">n (jumlah data)</span>
+                  <span className="font-display text-base font-extrabold text-sky-600">
                     {demoReadings.length}
                   </span>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2">
-                <h5 className="font-bold text-xs text-amber-900">Interpretasi:</h5>
-                <p className="text-xs font-semibold text-amber-950 leading-relaxed">
-                  {demoReadings.length >= 3
-                    ? pearsonResult.interpretation
-                    : "Belum ada data pengujian yang cukup. Perhitungan korelasi Pearson akan terisi otomatis setelah minimal 3 data terekam."}
-                </p>
-              </div>
+            {/* Interpretasi Box */}
+            <div className="mt-5 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-900">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-amber-800 mb-1">
+                Interpretasi:
+              </p>
+              <p className="text-xs font-semibold leading-relaxed">
+                {pearsonResult.interpretation}
+              </p>
             </div>
           </Card>
         </div>
 
-        {/* Bottom Cards: Baseline TDS (Tanpa TDS Akhir) and Status */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Section: Baseline TDS Left & Status Pengujian Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Card 1: Baseline TDS */}
-          <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                <Droplet size={17} strokeWidth={2.5} />
+          <MagneticCard className="p-5 h-[130px] flex flex-col justify-between border border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Droplet size={15} strokeWidth={2.5} />
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Baseline TDS</h3>
+              <h3 className="text-xs font-bold text-slate-800">Baseline TDS</h3>
             </div>
             <div className="my-auto py-1">
-              <div className="font-display text-3xl font-extrabold text-sky-600 tracking-tight">
-                {demoReadings.length > 0 ? `${baselineTds.toFixed(2).replace(".", ",")} mg/L` : "—"}
+              <div className="font-display text-2xl sm:text-3xl font-extrabold text-sky-600 tracking-tight">
+                {baselineTds != null ? `${baselineTds.toFixed(2).replace(".", ",")} mg/L` : "—"}
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500 leading-tight">
+              <p className="text-[11px] font-semibold text-slate-500">
                 Nilai awal (jam ke-0 / data pertama)
               </p>
             </div>
           </MagneticCard>
 
-          {/* Card 2: Status Evaluasi Demo */}
-          <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
-                <Flag size={17} strokeWidth={2.5} />
+          {/* Card 2: Status Pengujian Demo */}
+          <MagneticCard className="p-5 h-[130px] flex flex-col justify-between border border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Flag size={15} strokeWidth={2.5} />
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Status Pengujian Demo</h3>
+              <h3 className="text-xs font-bold text-slate-800">Status Pengujian Demo</h3>
             </div>
             <div className="my-auto py-1">
-              <div className="font-sans text-sm font-bold text-slate-800 leading-snug">
-                {latestReading && latestReading.tds <= 1000
-                  ? "Target TDS ≤ 1.000 mg/L terpenuhi. Kualitas air olahan memenuhi standar operasional."
-                  : "Dalam pemantauan live telemetri terintegrasi."}
+              <div className="font-bold text-sm sm:text-base text-slate-800">
+                Dalam pemantauan live telemetri terintegrasi.
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500 leading-tight">
+              <p className="text-[11px] font-semibold text-slate-500">
                 Status evaluasi telemetri live
               </p>
             </div>
