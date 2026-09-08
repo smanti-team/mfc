@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, LineChart, Info, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, CircleDot, History, LineChart, Info, Menu, X, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 export default function Header() {
@@ -12,6 +12,7 @@ export default function Header() {
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Live Demo", href: "/demo", icon: CircleDot },
     { name: "Riwayat Pengolahan", href: "/riwayat", icon: History },
     { name: "Data Penelitian", href: "/data", icon: LineChart },
     { name: "Tentang SMART-MFC", href: "/tentang", icon: Info },

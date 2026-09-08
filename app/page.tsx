@@ -146,7 +146,6 @@ export default function Home() {
 
   const lastUpdateTimeStr = latestReading ? formatFullDateTime(latestReading.timestamp) : "Belum ada data";
 
-  const activeBatchName = "Batch 003 — S3";
   const processingStatus = "SELESAI";
 
   // Convert telemetry history to CycleReading format for regression analysis
@@ -248,7 +247,7 @@ export default function Home() {
               </span>
               <span className="text-slate-500 text-lg font-medium tracking-wide">mg/L</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Total Padatan Terlarut ({activeBatchName})</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">Total Padatan Terlarut</p>
           </div>
         </MagneticCard>
 
@@ -306,7 +305,7 @@ export default function Home() {
               <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 bg-emerald-500 shadow-[0_0_12px_#10B981]"></span>
             </div>
             <p className="text-[11px] text-slate-500 mt-2 tracking-wide font-medium">
-              Status Batch: <span className="font-semibold text-slate-800">Batch 003 — S3 (Siklus 1–3 Selesai)</span>
+              Status: <span className="font-semibold text-slate-800">Siklus 1–3 Selesai</span>
             </p>
           </div>
         </MagneticCard>
@@ -524,7 +523,7 @@ export default function Home() {
                   </div>
                   <h4 className="text-slate-900 text-xs font-bold leading-tight mb-2">Ambil Data Telemetri</h4>
                   <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                    Sistem membaca titik data real-time <span className="font-semibold text-slate-800">{activeBatchName}</span> dari Cloud Gateway API.
+                    Sistem membaca titik data real-time reaktor SMART-MFC dari Cloud Gateway API.
                   </p>
                 </div>
                 <div className="mt-4 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10px] text-sky-600 font-semibold">
