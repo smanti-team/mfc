@@ -26,6 +26,8 @@ import {
   FastForward,
   Check,
   Pause,
+  Timer,
+  RadioTower,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -55,7 +57,7 @@ import {
 } from "@/lib/demo-simulation";
 
 // Placeholder sumbu waktu kosong persis sesuai Foto 2 (Jam ke- 0, 3, 6, 9, 12, 15)
-// Semua nilai adalah null sehingga grafik benar-benar KOSONG tanpa ada garis/titik dummy!
+// Semua nilai adalah null sehingga grafik benar-benar KOSONG saat belum ada data sama sekali!
 const EMPTY_AXIS_PLACEHOLDER = [
   { waktu: "0", tds: null, tegangan: null },
   { waktu: "3", tds: null, tegangan: null },
@@ -170,19 +172,20 @@ const CustomChartTooltip = ({ active, payload, label, unit }: any) => {
 };
 
 export default function LiveDemoPage() {
-  // State API Data Telemetri Dasar dari Cloudflare D1
+  // ── State API Telemetri Riil dari Cloudflare D1 Worker ──
   const [summary, setSummary] = useState<Summary>({ latest: null, history: [] });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isApiConnected, setIsApiConnected] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string>("--:--:--");
 
-  // State Simulasi Live Demo Multi-Siklus (Tersimpan di LocalStorage)
+  // ── State Simulasi Live Demo Multi-Siklus (Tersimpan di LocalStorage) ──
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isFrozen, setIsFrozen] = useState<boolean>(false);
   const [generationCount, setGenerationCount] = useState<number>(0);
   const [activeCycleTab, setActiveCycleTab] = useState<"s1" | "s2" | "s3">("s1");
   const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [countdownSec, setCountdownSec] = useState<number>(60);
 
   // Datasets 3 Siklus (Tersimpan di LocalStorage)
   const [s1Readings, setS1Readings] = useState<Reading[]>([]);
@@ -196,7 +199,7 @@ export default function LiveDemoPage() {
 
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  // Inisialisasi dari LocalStorage saat Komponen Dimuat di Browser
+  // 1. Inisialisasi dari LocalStorage saat Mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     const storedState = loadStoredDemoState();
@@ -205,8 +208,8 @@ export default function LiveDemoPage() {
     setGenerationCount(storedState.generationCount);
     setActiveCycleTab(storedState.activeCycleTab || "s1");
     setElapsedSec(storedState.elapsedSec || 0);
-    setBaseTds(storedState.baseTds || 1078);
-    setBaseVolt(storedState.baseVolt || 0.421);
+    if (storedState.baseTds) setBaseTds(storedState.baseTds);
+    if (storedState.baseVolt) setBaseVolt(storedState.baseVolt);
 
     const s1 = loadStoredCycleData("s1");
     const s2 = loadStoredCycleData("s2");
@@ -224,7 +227,7 @@ export default function LiveDemoPage() {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [elapsedSec]);
 
-  // Fungsi Fetch Data Dasar dari REST API (GET /summary?limit=15)
+  // 2. Fetch Data dari REST API (Polling Cepat setiap 3 detik)
   const loadApiData = useCallback(async () => {
     try {
       setApiError(null);
@@ -233,7 +236,7 @@ export default function LiveDemoPage() {
       setIsApiConnected(true);
       setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
 
-      // Jika ada data terkini dari API, simpan sebagai calon baseline
+      // Jika ada data terkini dari API, perbarui baseline
       const latest = data.latest || (data.history && data.history.length > 0 ? data.history[data.history.length - 1] : null);
       if (latest && latest.tds != null) {
         setBaseTds(Number(latest.tds.toFixed(2)));
@@ -252,22 +255,21 @@ export default function LiveDemoPage() {
     }
   }, []);
 
-  // Polling data API setiap 10 detik saat halaman dibuka untuk sinkronisasi telemetri dasar
   useEffect(() => {
     loadApiData();
+    // Polling setiap 3 detik agar telemetri riil dari ESP32/API langsung terdeteksi
     const interval = setInterval(() => {
       loadApiData();
-    }, 10000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [loadApiData]);
 
-  // Timer Durasi Berjalan Sesi (setiap detik)
+  // 3. Timer Durasi Berjalan Sesi (setiap detik)
   useEffect(() => {
     if (!isRunning || isFrozen) return;
     const timer = setInterval(() => {
       setElapsedSec((prev) => {
         const next = prev + 1;
-        // Simpan elapsed ke state localStorage setiap 5 detik
         if (next % 5 === 0) {
           const currentState = loadStoredDemoState();
           saveStoredDemoState({ ...currentState, elapsedSec: next });
@@ -285,14 +287,23 @@ export default function LiveDemoPage() {
     saveStoredDemoState({ ...currentState, activeCycleTab: tab });
   };
 
-  // Fungsi Inti: Eksekusi 1 Generasi Data Simultan untuk Ketiga Siklus (S1, S2, S3)
-  const executeGenerationStep = useCallback((stepNumber: number) => {
+  // 4. Fungsi Inti: Eksekusi 1 Generasi Data Simultan untuk Ketiga Siklus (S1, S2, S3)
+  const executeGenerationStep = useCallback((
+    stepNumber: number,
+    customBaseTds?: number,
+    customBaseVolt?: number,
+    customBaseTs?: number
+  ) => {
     if (stepNumber > 50) return;
 
+    const bTds = customBaseTds ?? baseTds;
+    const bVolt = customBaseVolt ?? baseVolt;
+    const bTs = customBaseTs ?? baseTimestampSec;
+
     // Generate titik baru untuk ketiga siklus secara bersamaan
-    const newP1 = generateCycleReadingPoint("s1", stepNumber, baseTds, baseVolt, baseTimestampSec);
-    const newP2 = generateCycleReadingPoint("s2", stepNumber, baseTds, baseVolt, baseTimestampSec);
-    const newP3 = generateCycleReadingPoint("s3", stepNumber, baseTds, baseVolt, baseTimestampSec);
+    const newP1 = generateCycleReadingPoint("s1", stepNumber, bTds, bVolt, bTs);
+    const newP2 = generateCycleReadingPoint("s2", stepNumber, bTds, bVolt, bTs);
+    const newP3 = generateCycleReadingPoint("s3", stepNumber, bTds, bVolt, bTs);
 
     setS1Readings((prev) => {
       const updated = [...prev, newP1];
@@ -313,13 +324,14 @@ export default function LiveDemoPage() {
     });
 
     setGenerationCount(stepNumber);
+    setCountdownSec(60); // Reset hitung mundur
 
     const willFreeze = stepNumber >= 50;
     if (willFreeze) {
       setIsFrozen(true);
       setNotificationMsg("Batas maksimum 50 data generasi tercapai (FREEZE). Demo terkunci hingga dihentikan.");
     } else {
-      setNotificationMsg(`✓ Data Jam ke-${stepNumber} digenerate simultan untuk Siklus 1, 2, dan 3 (LocalStorage).`);
+      setNotificationMsg(`✓ Data Jam ke-${stepNumber} masuk simultan untuk Siklus 1, 2, dan 3 (LocalStorage).`);
       setTimeout(() => setNotificationMsg(null), 4000);
     }
 
@@ -331,14 +343,14 @@ export default function LiveDemoPage() {
       lastGeneratedAt: Date.now(),
       elapsedSec,
       activeCycleTab,
-      baseTds,
-      baseVolt,
+      baseTds: bTds,
+      baseVolt: bVolt,
     };
     saveStoredDemoState(stateToSave);
   }, [baseTds, baseVolt, baseTimestampSec, elapsedSec, activeCycleTab]);
 
-  // Mesin Simulasi Otomatis: Generate data setiap 60 detik (1 menit = 1 jam penelitian)
-  // Mulai generate data pertama 1 menit setelah Mulai Demo ditekan
+  // 5. Mesin Simulasi Otomatis dengan Hitung Mundur Detik (Countdown)
+  // Setiap 1 detik countdown berkurang. Saat countdown = 0, step baru digenerate!
   const currentCountRef = useRef(generationCount);
   useEffect(() => {
     currentCountRef.current = generationCount;
@@ -348,23 +360,29 @@ export default function LiveDemoPage() {
     if (!isRunning || isFrozen) return;
 
     const interval = setInterval(() => {
-      const nextCount = currentCountRef.current + 1;
-      if (nextCount <= 50) {
-        executeGenerationStep(nextCount);
-      }
-    }, 60000); // 60 detik = 1 menit interval representasi 1 jam penelitian
+      setCountdownSec((prev) => {
+        if (prev <= 1) {
+          const nextCount = currentCountRef.current + 1;
+          if (nextCount <= 50) {
+            executeGenerationStep(nextCount);
+          }
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isRunning, isFrozen, executeGenerationStep]);
 
-  // Handler Mulai Demo
+  // 6. Handler Mulai Demo (LANGSUNG GENERASI TITIK PERTAMA SEKETIKA!)
   const handleStartDemo = () => {
     if (isFrozen) {
       setNotificationMsg("Sesi telah mencapai batas 50 generasi. Klik Akhiri Demo untuk mereset.");
       return;
     }
 
-    // Ambil data terbaru API sebagai baseline jika tersedia
+    // Ambil data terbaru API sebagai baseline awal
     const apiLatest = summary.latest || (summary.history && summary.history.length > 0 ? summary.history[summary.history.length - 1] : null);
     let initialTds = baseTds;
     let initialVolt = baseVolt;
@@ -380,15 +398,23 @@ export default function LiveDemoPage() {
     }
 
     setIsRunning(true);
-    setNotificationMsg("Sesi Live Demo aktif! Generasi data pertama dimulai 1 menit lagi (atau klik Simulasikan Step).");
-    setTimeout(() => setNotificationMsg(null), 5000);
+    setCountdownSec(60);
+
+    // KUNCI: JIKA BELUM ADA DATA, LANGSUNG MASUKKAN TITIK JAM KE-1 SEKETIKA!
+    // Sehingga pengguna TIDAK PERLU menunggu 1 menit dalam keadaan grafik kosong!
+    if (generationCount === 0) {
+      executeGenerationStep(1, initialTds, initialVolt, initialTimestamp);
+      setNotificationMsg("✓ Sesi demo aktif! Titik Jam ke-1 langsung dimasukkan. Titik berikutnya otomatis setiap 60 detik.");
+    } else {
+      setNotificationMsg(`✓ Sesi demo aktif melanjutkan generasi ke-${generationCount}.`);
+    }
 
     const newState: DemoState = {
       isRunning: true,
       isFrozen: false,
-      generationCount,
+      generationCount: generationCount === 0 ? 1 : generationCount,
       startedAt: Date.now(),
-      lastGeneratedAt: null,
+      lastGeneratedAt: Date.now(),
       elapsedSec,
       activeCycleTab,
       baseTds: initialTds,
@@ -397,7 +423,7 @@ export default function LiveDemoPage() {
     saveStoredDemoState(newState);
   };
 
-  // Handler Manual Step Simulasi (+1 Jam / +1 Menit ke LocalStorage)
+  // 7. Handler Manual Step Simulasi (+1 Jam / +1 Menit ke LocalStorage)
   const handleManualSimulateStep = () => {
     if (!isRunning) {
       setNotificationMsg("Klik 'Mulai Demo' terlebih dahulu sebelum memasukkan data generasi.");
@@ -412,25 +438,25 @@ export default function LiveDemoPage() {
     executeGenerationStep(nextStep);
   };
 
-  // Handler Akhiri Demo (Otomatis Hapus Seluruh Data di LocalStorage)
+  // 8. Handler Akhiri Demo (Otomatis Hapus Seluruh Data di LocalStorage)
   const handleStopDemo = () => {
-    // 1. Bersihkan seluruh penyimpanan lokal
     clearStoredDemoData();
-
-    // 2. Reset seluruh state memori ke kondisi awal bersih
     setIsRunning(false);
     setIsFrozen(false);
     setGenerationCount(0);
     setElapsedSec(0);
+    setCountdownSec(60);
     setS1Readings([]);
     setS2Readings([]);
     setS3Readings([]);
 
-    setNotificationMsg("✓ Sesi demo dihentikan. Seluruh data generasi simulasi di LocalStorage telah dibersihkan.");
+    setNotificationMsg("✓ Sesi demo dihentikan. Seluruh data simulasi di LocalStorage telah dibersihkan.");
     setTimeout(() => setNotificationMsg(null), 4000);
   };
 
-  // Dataset Siklus Aktif berdasarkan Tab yang dipilih
+  // ── Penentuan Sumber Data yang Sedang Ditampilkan ──
+  // Mode A: Simulasi Multi-Siklus Aktif (saat demo berjalan dan ada data generasi)
+  // Mode B: Live API Stream (saat demo belum berjalan tapi data API dari Cloudflare/ESP32 tersedia)
   const activeCycleConfig = CYCLE_CONFIGS[activeCycleTab];
   const activeDataset = useMemo(() => {
     if (activeCycleTab === "s1") return s1Readings;
@@ -438,46 +464,82 @@ export default function LiveDemoPage() {
     return s3Readings;
   }, [activeCycleTab, s1Readings, s2Readings, s3Readings]);
 
-  const hasData = activeDataset.length > 0;
+  const isSimulationActive = isRunning && activeDataset.length > 0;
+  const hasSimData = activeDataset.length > 0;
+  const hasApiData = Boolean(summary.latest || (summary.history && summary.history.length > 0));
 
-  // Data Terkini Siklus Aktif
+  // Data Terkini: Prioritaskan dataset simulasi siklus aktif jika demo berjalan; jika tidak, tampilkan telemetri riil API!
   const latestReading = useMemo(() => {
-    if (activeDataset.length > 0) {
+    if (hasSimData) {
       return activeDataset[activeDataset.length - 1];
     }
-    // Jika belum ada data simulasi, gunakan data terakhir dari API sebagai referensi awal
     if (summary.latest) return summary.latest;
     if (summary.history && summary.history.length > 0) return summary.history[summary.history.length - 1];
     return null;
-  }, [activeDataset, summary.latest, summary.history]);
+  }, [hasSimData, activeDataset, summary.latest, summary.history]);
 
   const latestTdsVal = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : null;
   const latestVoltVal = latestReading?.voltage != null ? Number(latestReading.voltage.toFixed(3)) : null;
 
+  // Dataset Riwayat API Terurut Kronologis
+  const sortedApiHistory = useMemo(() => {
+    const raw = summary.history || [];
+    return [...raw].sort(
+      (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
+    );
+  }, [summary.history]);
+
   // Dataset Grafik TDS Live untuk Recharts
   const chartTdsData = useMemo(() => {
-    if (!hasData) return EMPTY_AXIS_PLACEHOLDER;
-    return activeDataset.map((item, idx) => ({
-      waktu: `Jam ${idx + 1}`,
-      rawTime: formatTime(item.timestamp),
-      tds: item.tds != null ? Number(item.tds.toFixed(2)) : null,
-    }));
-  }, [hasData, activeDataset]);
+    // 1. Jika ada data simulasi siklus, tampilkan data siklus aktif
+    if (hasSimData) {
+      return activeDataset.map((item, idx) => ({
+        waktu: `Jam ${idx + 1}`,
+        rawTime: formatTime(item.timestamp),
+        tds: item.tds != null ? Number(item.tds.toFixed(2)) : null,
+      }));
+    }
+
+    // 2. Jika sesi demo belum aktif tetapi ada data dari API, tampilkan data API riil langsung!
+    if (sortedApiHistory.length > 0) {
+      return sortedApiHistory.map((item) => ({
+        waktu: formatTime(item.timestamp),
+        rawTime: formatTime(item.timestamp),
+        tds: item.tds != null ? Number(item.tds.toFixed(2)) : null,
+      }));
+    }
+
+    // 3. Fallback kosong murni jika belum ada data dari manapun
+    return EMPTY_AXIS_PLACEHOLDER;
+  }, [hasSimData, activeDataset, sortedApiHistory]);
 
   // Dataset Grafik Tegangan Live untuk Recharts
   const chartVoltData = useMemo(() => {
-    if (!hasData) return EMPTY_AXIS_PLACEHOLDER;
-    return activeDataset.map((item, idx) => ({
-      waktu: `Jam ${idx + 1}`,
-      rawTime: formatTime(item.timestamp),
-      tegangan: item.voltage != null ? Number(item.voltage.toFixed(3)) : null,
-    }));
-  }, [hasData, activeDataset]);
+    if (hasSimData) {
+      return activeDataset.map((item, idx) => ({
+        waktu: `Jam ${idx + 1}`,
+        rawTime: formatTime(item.timestamp),
+        tegangan: item.voltage != null ? Number(item.voltage.toFixed(3)) : null,
+      }));
+    }
+
+    if (sortedApiHistory.length > 0) {
+      return sortedApiHistory.map((item) => ({
+        waktu: formatTime(item.timestamp),
+        rawTime: formatTime(item.timestamp),
+        tegangan: item.voltage != null ? Number(item.voltage.toFixed(3)) : null,
+      }));
+    }
+
+    return EMPTY_AXIS_PLACEHOLDER;
+  }, [hasSimData, activeDataset, sortedApiHistory]);
+
+  const hasAnyData = hasSimData || sortedApiHistory.length > 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* ─────────────────────────────────────────────────────────────
-          1. HEADER TITLE & BADGE
+          1. HEADER TITLE & BADGES
       ───────────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
@@ -503,6 +565,26 @@ export default function LiveDemoPage() {
             {isApiConnected ? "TERHUBUNG D1 API (LIVE)" : "MODE PENGUJIAN / SIMULASI"}
           </Badge>
         </div>
+      </div>
+
+      {/* ── Status Bar Real-Time Sinkronisasi API & Hitung Mundur Simulasi ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-slate-600 font-medium">
+            API Cloudflare: <strong className="text-slate-900">{isApiConnected ? "Online (Sinkron 3 detik)" : "Mencoba menghubungkan..."}</strong>
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="text-slate-500 font-mono">Sync: {lastSyncTime}</span>
+        </div>
+
+        {isRunning && !isFrozen && (
+          <div className="flex items-center gap-2 text-sky-700 font-semibold bg-sky-50 px-3 py-1 rounded-lg border border-sky-200">
+            <Timer size={14} className="animate-spin text-sky-600" />
+            <span>Data Jam ke-{generationCount + 1} masuk dalam:</span>
+            <span className="font-mono font-bold text-sky-900 text-sm">{countdownSec}s</span>
+          </div>
+        )}
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
@@ -561,11 +643,11 @@ export default function LiveDemoPage() {
       )}
 
       {/* Banner status jika belum ada data */}
-      {!hasData && (
+      {!hasAnyData && (
         <div className="p-3.5 bg-sky-50/90 border border-sky-200 rounded-2xl flex items-center gap-3 text-xs text-sky-900 shadow-2xs">
           <Info size={17} className="text-sky-600 flex-shrink-0" />
           <div className="flex-1 font-medium">
-            Siklus siap. Klik <strong className="text-sky-950 font-bold">Mulai Demo</strong> untuk memulai generasi data otomatis setiap 1 menit (representasi 1 jam penelitian) atau gunakan tombol simulasi manual step.
+            Siklus siap. Klik <strong className="text-sky-950 font-bold">Mulai Demo</strong> untuk memasukkan data awal dan menjalankan simulasi otomatis, atau hubungkan ESP32 ke API D1.
           </div>
         </div>
       )}
@@ -579,11 +661,13 @@ export default function LiveDemoPage() {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
-                <Droplets size={20} className={hasData ? "animate-pulse" : ""} />
+                <Droplets size={20} className={hasAnyData ? "animate-pulse" : ""} />
               </div>
               <div>
                 <span className="text-sm font-semibold text-slate-700">TDS Live</span>
-                <span className="block text-[10px] text-sky-600 font-bold">{activeCycleConfig.name}</span>
+                <span className="block text-[10px] text-sky-600 font-bold">
+                  {hasSimData ? activeCycleConfig.name : isApiConnected ? "Stream API D1" : "Menunggu"}
+                </span>
               </div>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -593,18 +677,22 @@ export default function LiveDemoPage() {
               <span className="text-sm font-bold text-slate-500">mg/L</span>
             </div>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {hasData ? `Pembacaan jam ke-${generationCount}` : "Menunggu data simulasi masuk"}
+              {hasSimData
+                ? `Pembacaan jam ke-${generationCount}`
+                : latestTdsVal !== null
+                ? "Pembacaan sensor dari API"
+                : "Menunggu data masuk"}
             </p>
           </div>
           <div>
             <span
               className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                hasData
+                latestTdsVal !== null
                   ? "bg-sky-50 text-sky-700 border border-sky-200/80"
                   : "bg-slate-100 text-slate-500 border border-slate-200"
               }`}
             >
-              {hasData ? "TERBACA" : "MENUNGGU"}
+              {latestTdsVal !== null ? "TERBACA" : "MENUNGGU"}
             </span>
           </div>
         </MagneticCard>
@@ -614,11 +702,13 @@ export default function LiveDemoPage() {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
-                <Zap size={20} className={hasData ? "animate-pulse" : ""} />
+                <Zap size={20} className={hasAnyData ? "animate-pulse" : ""} />
               </div>
               <div>
                 <span className="text-sm font-semibold text-slate-700">Tegangan Live</span>
-                <span className="block text-[10px] text-sky-600 font-bold">{activeCycleConfig.name}</span>
+                <span className="block text-[10px] text-sky-600 font-bold">
+                  {hasSimData ? activeCycleConfig.name : isApiConnected ? "Stream API D1" : "Menunggu"}
+                </span>
               </div>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -628,18 +718,22 @@ export default function LiveDemoPage() {
               <span className="text-sm font-bold text-slate-500">V</span>
             </div>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {hasData ? "Tegangan MFC siklus terpilih" : "Tegangan Reaktor (Menunggu Data)"}
+              {hasSimData
+                ? "Tegangan MFC siklus terpilih"
+                : latestVoltVal !== null
+                ? "Tegangan aktual reaktor"
+                : "Tegangan Reaktor (Menunggu Data)"}
             </p>
           </div>
           <div>
             <span
               className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                hasData
+                latestVoltVal !== null
                   ? "bg-sky-50 text-sky-700 border border-sky-200/80"
                   : "bg-slate-100 text-slate-500 border border-slate-200"
               }`}
             >
-              {hasData ? "TERBACA" : "MENUNGGU"}
+              {latestVoltVal !== null ? "TERBACA" : "MENUNGGU"}
             </span>
           </div>
         </MagneticCard>
@@ -660,10 +754,12 @@ export default function LiveDemoPage() {
                     ? "text-purple-600"
                     : isRunning
                     ? "text-emerald-600"
+                    : isApiConnected
+                    ? "text-emerald-600"
                     : "text-slate-500"
                 }`}
               >
-                {isFrozen ? "FREEZE" : isRunning ? "AKTIF" : "DIHENTIKAN"}
+                {isFrozen ? "FREEZE" : isRunning ? "AKTIF" : isApiConnected ? "TERHUBUNG" : "OFFLINE"}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1.5 font-medium">
@@ -671,6 +767,8 @@ export default function LiveDemoPage() {
                 ? "50 data tercapai • Siap dihentikan"
                 : isRunning
                 ? `Simulasi aktif • ${generationCount}/50 data`
+                : isApiConnected
+                ? "ESP32 terhubung • API D1 Aktif"
                 : "Sesi demo dihentikan"}
             </p>
           </div>
@@ -681,10 +779,12 @@ export default function LiveDemoPage() {
                   ? "bg-purple-50 text-purple-700 border border-purple-200"
                   : isRunning
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                  : isApiConnected
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
                   : "bg-slate-100 text-slate-600 border border-slate-200"
               }`}
             >
-              {isFrozen ? "LOCKED" : isRunning ? "RUNNING" : "STOPPED"}
+              {isFrozen ? "LOCKED" : isRunning ? "RUNNING" : isApiConnected ? "ONLINE" : "STOPPED"}
             </span>
           </div>
         </MagneticCard>
@@ -746,17 +846,19 @@ export default function LiveDemoPage() {
                 <Droplets className="text-sky-600 flex-shrink-0 mt-0.5" size={18} />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 leading-tight">
-                    Grafik TDS Live — {activeCycleConfig.name}
+                    Grafik TDS Live — {hasSimData ? activeCycleConfig.name : "Telemetri Real-Time"}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {hasData
+                    {hasSimData
                       ? `Model Linier: Slope +${activeCycleConfig.slope} mg/L/jam (R² ${activeCycleConfig.r2})`
+                      : hasAnyData
+                      ? "Menampilkan data telemetri real-time dari API Cloudflare D1"
                       : "Menunggu data masuk dari sensor / simulasi"}
                   </p>
                 </div>
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                Local Storage
+                {hasSimData ? "Local Storage" : "REST API D1"}
               </span>
             </div>
 
@@ -786,7 +888,7 @@ export default function LiveDemoPage() {
                     tick={{ fontSize: 11, fill: "#64748B", fontWeight: 500 }}
                     padding={{ left: 20, right: 20 }}
                     label={{
-                      value: hasData ? "Jam Penelitian (Simulasi)" : "Jam ke-",
+                      value: hasSimData ? "Jam Penelitian (Simulasi)" : "Waktu Pengambilan",
                       position: "insideBottom",
                       offset: -20,
                       fontSize: 11,
@@ -795,8 +897,8 @@ export default function LiveDemoPage() {
                     }}
                   />
                   <YAxis
-                    domain={hasData ? ["dataMin - 30", "dataMax + 30"] : [600, 1600]}
-                    ticks={hasData ? undefined : [600, 850, 1100, 1350, 1600]}
+                    domain={hasAnyData ? ["dataMin - 30", "dataMax + 30"] : [600, 1600]}
+                    ticks={hasAnyData ? undefined : [600, 850, 1100, 1350, 1600]}
                     axisLine={{ stroke: "#CBD5E1" }}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: "#64748B" }}
@@ -824,7 +926,7 @@ export default function LiveDemoPage() {
                       position: "insideBottomLeft",
                     }}
                   />
-                  {hasData && (
+                  {hasAnyData && (
                     <Area
                       type="monotone"
                       dataKey="tds"
@@ -845,9 +947,17 @@ export default function LiveDemoPage() {
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
             <div className="flex items-center gap-1.5">
               <Clock size={13} className="text-slate-400" />
-              <span>{hasData ? `Total ${activeDataset.length} data generasi` : "Menunggu Data Masuk"}</span>
+              <span>
+                {hasSimData
+                  ? `Total ${activeDataset.length} data generasi`
+                  : sortedApiHistory.length > 0
+                  ? `Total ${sortedApiHistory.length} data riwayat API`
+                  : "Menunggu Data Masuk"}
+              </span>
             </div>
-            <span className="font-mono text-[11px] text-slate-400">1 mnt demo = 1 jam penelitian</span>
+            <span className="font-mono text-[11px] text-slate-400">
+              {hasSimData ? "1 mnt demo = 1 jam penelitian" : "Polling REST API 3 detik"}
+            </span>
           </div>
         </div>
 
@@ -859,17 +969,19 @@ export default function LiveDemoPage() {
                 <Zap className="text-sky-600 flex-shrink-0 mt-0.5" size={18} />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 leading-tight">
-                    Grafik Tegangan Live — {activeCycleConfig.name}
+                    Grafik Tegangan Live — {hasSimData ? activeCycleConfig.name : "Telemetri Real-Time"}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {hasData
+                    {hasSimData
                       ? "Fluktuasi tegangan mikro MFC terkalibrasi bio-elektrik"
+                      : hasAnyData
+                      ? "Menampilkan tegangan riil sensor MFC dari API D1"
                       : "Menunggu data masuk dari sensor / simulasi"}
                   </p>
                 </div>
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                Local Storage
+                {hasSimData ? "Local Storage" : "REST API D1"}
               </span>
             </div>
 
@@ -899,7 +1011,7 @@ export default function LiveDemoPage() {
                     tick={{ fontSize: 11, fill: "#64748B", fontWeight: 500 }}
                     padding={{ left: 20, right: 20 }}
                     label={{
-                      value: hasData ? "Jam Penelitian (Simulasi)" : "Jam ke-",
+                      value: hasSimData ? "Jam Penelitian (Simulasi)" : "Waktu Pengambilan",
                       position: "insideBottom",
                       offset: -20,
                       fontSize: 11,
@@ -908,8 +1020,8 @@ export default function LiveDemoPage() {
                     }}
                   />
                   <YAxis
-                    domain={hasData ? ["dataMin - 0.05", "dataMax + 0.05"] : [0.0, 1.0]}
-                    ticks={hasData ? undefined : [0.0, 0.25, 0.5, 0.75, 1.0]}
+                    domain={hasAnyData ? ["dataMin - 0.05", "dataMax + 0.05"] : [0.0, 1.0]}
+                    ticks={hasAnyData ? undefined : [0.0, 0.25, 0.5, 0.75, 1.0]}
                     axisLine={{ stroke: "#CBD5E1" }}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: "#64748B" }}
@@ -925,7 +1037,7 @@ export default function LiveDemoPage() {
                     }}
                   />
                   <Tooltip content={<CustomChartTooltip unit="V" />} />
-                  {hasData && (
+                  {hasAnyData && (
                     <Area
                       type="monotone"
                       dataKey="tegangan"
@@ -946,9 +1058,17 @@ export default function LiveDemoPage() {
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
             <div className="flex items-center gap-1.5">
               <Clock size={13} className="text-slate-400" />
-              <span>{hasData ? `Total ${activeDataset.length} data generasi` : "Menunggu Data Masuk"}</span>
+              <span>
+                {hasSimData
+                  ? `Total ${activeDataset.length} data generasi`
+                  : sortedApiHistory.length > 0
+                  ? `Total ${sortedApiHistory.length} data riwayat API`
+                  : "Menunggu Data Masuk"}
+              </span>
             </div>
-            <span className="font-mono text-[11px] text-slate-400">Sinkronisasi Simultan 3 Siklus</span>
+            <span className="font-mono text-[11px] text-slate-400">
+              {hasSimData ? "Sinkronisasi Simultan 3 Siklus" : "Telemetri Reaktor Aktif"}
+            </span>
           </div>
         </div>
       </div>
@@ -973,11 +1093,11 @@ export default function LiveDemoPage() {
                 className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
                   isRunning || isFrozen
                     ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80"
-                    : "bg-sky-600 hover:bg-sky-700 text-white shadow-sm hover:shadow"
+                    : "bg-sky-600 hover:bg-sky-700 text-white shadow-sm hover:shadow active:scale-[0.98]"
                 }`}
               >
                 <Play size={15} className={isRunning || isFrozen ? "text-slate-400" : "fill-white"} />
-                <span>Mulai Demo</span>
+                <span>{generationCount > 0 ? "Lanjutkan Demo" : "Mulai Demo"}</span>
               </button>
 
               {/* Tombol Akhiri Demo */}
@@ -987,7 +1107,7 @@ export default function LiveDemoPage() {
                 className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                   !isRunning && generationCount === 0
                     ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80"
-                    : "border-2 border-rose-500 text-rose-600 hover:bg-rose-50 active:bg-rose-100 shadow-2xs"
+                    : "border-2 border-rose-500 text-rose-600 hover:bg-rose-50 active:bg-rose-100 shadow-2xs active:scale-[0.98]"
                 }`}
               >
                 <Square size={14} className={!isRunning && generationCount === 0 ? "text-slate-400" : "fill-rose-600 text-rose-600"} />
@@ -998,7 +1118,7 @@ export default function LiveDemoPage() {
               <button
                 onClick={handleManualSimulateStep}
                 disabled={!isRunning || isFrozen}
-                className="w-full mt-2 py-2 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 active:bg-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-2 py-2 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 active:bg-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                 title="Generate 1 titik jam berikutnya secara instan ke local storage"
               >
                 <FastForward size={13} />
@@ -1014,8 +1134,8 @@ export default function LiveDemoPage() {
                 {isFrozen
                   ? "Batas 50 data tercapai. Seluruh data aman di LocalStorage. Klik 'Akhiri Demo' untuk membersihkan dan reset."
                   : isRunning
-                  ? "Sesi demo aktif. Data 3 siklus digenerate simultan ke LocalStorage setiap 1 menit (maks 50 data)."
-                  : "Sesi demo tidak aktif. Klik Mulai Demo untuk menjalankan simulasi."}
+                  ? `Sesi aktif (${generationCount}/50 data). Titik berikutnya masuk otomatis setiap 60 detik atau klik tombol Step.`
+                  : "Sesi demo dijeda / tidak aktif. Klik Mulai Demo untuk menjalankan generasi data multi-siklus."}
               </p>
             </div>
           </div>
@@ -1035,7 +1155,9 @@ export default function LiveDemoPage() {
                   <Layers size={13} className="text-slate-400 shrink-0" />
                   <span>Siklus Aktif</span>
                 </div>
-                <span className="text-sky-700 font-bold text-right">{activeCycleConfig.name}</span>
+                <span className="text-sky-700 font-bold text-right">
+                  {hasSimData ? activeCycleConfig.name : "Stream API Langsung"}
+                </span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
@@ -1315,7 +1437,7 @@ export default function LiveDemoPage() {
             <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
             <span className="text-xs font-semibold text-emerald-800 leading-tight">
               {isApiConnected
-                ? "Semua komponen terhubung ke REST API Cloudflare D1 dan alur data berjalan lancar."
+                ? "Semua komponen terhubung ke REST API Cloudflare D1 dan alur telemetri berjalan lancar."
                 : "Alur simulasi data lokal berjalan (menunggu sinkronisasi API)."}
             </span>
           </div>
@@ -1330,7 +1452,7 @@ export default function LiveDemoPage() {
           <Info size={16} />
         </div>
         <p className="leading-relaxed font-medium">
-          <span className="font-bold text-slate-900">Catatan:</span> Halaman ini digunakan untuk demonstrasi sistem SMART-MFC yang terhubung ke IoT Telemetry REST API dan simulasi data penelitian (Siklus 1: slope +0,458, Siklus 2: slope +1,049, Siklus 3: slope +0,131). Data sesi demo disimpan di LocalStorage browser dan akan otomatis dihapus saat sesi dihentikan.
+          <span className="font-bold text-slate-900">Catatan:</span> Halaman ini digunakan untuk demonstrasi sistem SMART-MFC yang terhubung langsung ke IoT Telemetry REST API Cloudflare D1 (sinkronisasi 3 detik) serta simulasi data penelitian (Siklus 1: slope +0,458, Siklus 2: slope +1,049, Siklus 3: slope +0,131). Data simulasi tersimpan di LocalStorage dan akan otomatis dihapus saat demo dihentikan.
         </p>
       </div>
     </div>
