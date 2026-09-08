@@ -1,33 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
+import MagneticCard from "@/components/MagneticCard";
+import Card from "@/components/Card";
+import Badge from "@/components/Badge";
+import { fetchSummary } from "@/lib/api";
+import type { Summary } from "@/lib/types";
+import { calculateTdsRegression, type CycleReading } from "@/lib/regression";
 import {
-  Droplets,
-  Zap,
-  Wifi,
-  Clock,
-  Settings,
-  Info,
-  CheckCircle2,
-  Play,
-  Square,
-  FlaskConical,
-  Cpu,
-  Radio,
-  Cloud,
-  Monitor,
-  Layers,
-  Hourglass,
-  RefreshCw,
+  Download,
   Database,
-  AlertCircle,
-  Share2,
-  TrendingUp,
-  FastForward,
+  Clock,
+  Droplet,
+  Target,
+  TrendingDown,
+  Info,
+  Hourglass,
+  LineChart as ChartIcon,
+  Zap,
+  FlaskConical,
+  Wifi,
+  WifiOff,
   Check,
-  Pause,
-  Timer,
-  RadioTower,
+  Flag,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -38,34 +33,164 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from "recharts";
-import Badge from "@/components/Badge";
-import MagneticCard from "@/components/MagneticCard";
-import { fetchSummary } from "@/lib/api";
-import type { Reading, Summary } from "@/lib/types";
-import {
-  CYCLE_CONFIGS,
-  type CycleConfig,
-  type DemoState,
-  DEFAULT_DEMO_STATE,
-  generateCycleReadingPoint,
-  loadStoredDemoState,
-  saveStoredDemoState,
-  loadStoredCycleData,
-  saveStoredCycleData,
-  clearStoredDemoData,
-} from "@/lib/demo-simulation";
 
-// Placeholder sumbu waktu kosong persis sesuai Foto 2 (Jam ke- 0, 3, 6, 9, 12, 15)
-// Semua nilai adalah null sehingga grafik benar-benar KOSONG saat belum ada data sama sekali!
-const EMPTY_AXIS_PLACEHOLDER = [
-  { waktu: "0", tds: null, tegangan: null },
-  { waktu: "3", tds: null, tegangan: null },
-  { waktu: "6", tds: null, tegangan: null },
-  { waktu: "9", tds: null, tegangan: null },
-  { waktu: "12", tds: null, tegangan: null },
-  { waktu: "15", tds: null, tegangan: null },
-];
+// Student t-distribution two-tailed p-value approximation
+function logGamma(z: number): number {
+  const c = [
+    57.1562356658629235, -59.5979603554754912, 14.1360419733309255,
+    -0.491913816097620199, 0.339946499848118887e-4, 0.465236289270485756e-4,
+    -0.983744753048795646e-4, 0.158088703224912488e-3, -0.210264441724104883e-3,
+    0.217439618115212643e-3, -0.16431810653676389e-3, 0.844182239838527433e-4,
+    -0.261908384015814086e-4, 0.368991826595316227e-5,
+  ];
+  let y = z;
+  let tmp = z + 5.2421875;
+  tmp = (z + 0.5) * Math.log(tmp) - tmp;
+  let ser = 0.9999999999999970918;
+  for (let j = 0; j < 14; j++) {
+    y += 1;
+    ser += c[j] / y;
+  }
+  return tmp + Math.log((2.5066282746310005 * ser) / z);
+}
+
+function incompleteBeta(x: number, a: number, b: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+
+  const maxIter = 100;
+  const eps = 3e-7;
+  const lbeta = logGamma(a) + logGamma(b) - logGamma(a + b);
+  const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
+
+  let d = 1 - ((a + b) * x) / (a + 1);
+  if (Math.abs(d) < eps) d = eps;
+  d = 1 / d;
+  let c = 1;
+  let h = d;
+
+  for (let m = 1; m <= maxIter; m++) {
+    const m2 = 2 * m;
+    let aa = (m * (b - m) * x) / ((a + m2 - 1) * (a + m2));
+    d = 1 + aa * d;
+    if (Math.abs(d) < eps) d = eps;
+    c = 1 + aa / c;
+    if (Math.abs(c) < eps) c = eps;
+    d = 1 / d;
+    h *= d * c;
+
+    aa = -((a + m) * (a + b + m) * x) / ((a + m2) * (a + m2 + 1));
+    d = 1 + aa * d;
+    if (Math.abs(d) < eps) d = eps;
+    c = 1 + aa / c;
+    if (Math.abs(c) < eps) c = eps;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < eps) break;
+  }
+  return front * h;
+}
+
+function studentTPValue(t: number, df: number): number {
+  if (df <= 0) return 1;
+  const x = df / (df + t * t);
+  const beta = incompleteBeta(x, df / 2, 0.5);
+  return Math.max(0, Math.min(1, beta));
+}
+
+// Calculate Pearson Correlation between Reduction % (X) and Voltage V (Y)
+function calculatePearsonCorrelation(readings: CycleReading[]) {
+  const n = readings.length;
+  if (n < 3) {
+    return {
+      r: 0,
+      rStr: "0,000",
+      pValue: 1,
+      pValueStr: "1,000",
+      n,
+      interpretation: "Data belum cukup untuk analisis korelasi (minimal 3 data).",
+    };
+  }
+
+  const baselineTds = readings[0].tds;
+  const xyPairs = readings.map((r) => {
+    const reductionPct = baselineTds > 0 ? ((baselineTds - r.tds) / baselineTds) * 100 : 0;
+    return { x: reductionPct, y: r.voltage };
+  });
+
+  let sumX = 0,
+    sumY = 0;
+  for (const p of xyPairs) {
+    sumX += p.x;
+    sumY += p.y;
+  }
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+
+  let num = 0,
+    denomX = 0,
+    denomY = 0;
+  for (const p of xyPairs) {
+    const dx = p.x - meanX;
+    const dy = p.y - meanY;
+    num += dx * dy;
+    denomX += dx * dx;
+    denomY += dy * dy;
+  }
+
+  if (denomX === 0 || denomY === 0) {
+    return {
+      r: 0,
+      rStr: "+0,000",
+      pValue: 1,
+      pValueStr: "1,000",
+      n,
+      interpretation: "Korelasi tidak dapat dihitung (variansi data nol).",
+    };
+  }
+
+  const r = num / Math.sqrt(denomX * denomY);
+  const clampedR = Math.max(-1, Math.min(1, r));
+
+  const df = n - 2;
+  let pValue = 1;
+  if (Math.abs(clampedR) < 1) {
+    const tStat = Math.abs(clampedR) * Math.sqrt(df / (1 - clampedR * clampedR));
+    pValue = studentTPValue(tStat, df);
+  } else {
+    pValue = 0;
+  }
+
+  const signStr = clampedR >= 0 ? "+" : "-";
+  const rStr = `${signStr}${Math.abs(clampedR).toFixed(3).replace(".", ",")}`;
+  const pValueStr = pValue < 0.001 ? "<0,001" : pValue.toFixed(3).replace(".", ",");
+
+  const absR = Math.abs(clampedR);
+  const direction = clampedR >= 0 ? "positif" : "negatif";
+  let strength = "sangat lemah";
+  if (absR >= 0.8) strength = "sangat kuat";
+  else if (absR >= 0.6) strength = "sedang-kuat";
+  else if (absR >= 0.4) strength = "sedang";
+  else if (absR >= 0.2) strength = "lemah";
+
+  const significance = pValue < 0.05 ? "signifikan (p < 0,05)" : "tidak signifikan (p > 0,05)";
+
+  const interpretation = `Korelasi ${direction} ${strength}; ${significance}.`;
+
+  return {
+    r: clampedR,
+    rStr,
+    pValue,
+    pValueStr,
+    n,
+    interpretation,
+  };
+}
 
 function parseTimestamp(ts: string | number): Date {
   if (typeof ts === "number") {
@@ -76,15 +201,34 @@ function parseTimestamp(ts: string | number): Date {
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
+function formatDate(ts: string | number): string {
+  const d = parseTimestamp(ts);
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
+}
+
 function formatTime(ts: string | number): string {
   const d = parseTimestamp(ts);
   return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatFullTime(ts: string | number): string {
-  const d = parseTimestamp(ts);
-  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
+const RenderScatterDotWithLabel = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (cx == null || cy == null || !payload) return <g />;
+
+  return (
+    <g className="group cursor-pointer">
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="#16A34A"
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        className="transition-transform duration-200 hover:scale-150"
+      />
+    </g>
+  );
+};
 
 const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) => {
   const [displayedText, setDisplayedText] = useState("");
@@ -107,1353 +251,932 @@ const TypewriterText = ({ text, speed = 80 }: { text: string; speed?: number }) 
   );
 };
 
-// Custom Label Renderer untuk Recharts Titik Data TDS
-const CustomTdsLabel = (props: any) => {
-  const { x, y, value } = props;
-  if (x == null || y == null || value == null) return null;
-  const formatted = typeof value === "number" ? value.toLocaleString("id-ID") : value;
-  return (
-    <text
-      x={x}
-      y={y - 8}
-      fill="#0F172A"
-      fontSize={10}
-      fontWeight={700}
-      textAnchor="middle"
-      className="select-none font-sans"
-    >
-      {formatted}
-    </text>
-  );
-};
-
-// Custom Label Renderer untuk Recharts Titik Data Tegangan
-const CustomVoltLabel = (props: any) => {
-  const { x, y, value } = props;
-  if (x == null || y == null || value == null) return null;
-  const formatted =
-    typeof value === "number"
-      ? value.toFixed(3).replace(".", ",")
-      : String(value).replace(".", ",");
-  return (
-    <text
-      x={x}
-      y={y - 8}
-      fill="#0F172A"
-      fontSize={10}
-      fontWeight={700}
-      textAnchor="middle"
-      className="select-none font-sans"
-    >
-      {formatted}
-    </text>
-  );
-};
-
-// Custom Tooltip Recharts
-const CustomChartTooltip = ({ active, payload, label, unit }: any) => {
-  if (active && payload && payload.length) {
-    const val = payload[0].value;
-    if (val == null) return null;
-    return (
-      <div className="bg-white/95 backdrop-blur-md px-3 py-2 rounded-xl shadow-lg border border-slate-200 text-xs">
-        <p className="font-semibold text-slate-700 mb-0.5">Waktu: {label}</p>
-        <p className="font-mono font-bold text-sky-600">
-          {typeof val === "number"
-            ? unit === "V"
-              ? `${val.toFixed(3).replace(".", ",")} V`
-              : `${val.toLocaleString("id-ID")} mg/L`
-            : `${val} ${unit}`}
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
 export default function LiveDemoPage() {
-  // ── State API Telemetri Riil dari Cloudflare D1 Worker ──
   const [summary, setSummary] = useState<Summary>({ latest: null, history: [] });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isApiConnected, setIsApiConnected] = useState<boolean>(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<string>("--:--:--");
+  const [error, setError] = useState<string | null>(null);
+  const [isApiConnected, setIsApiConnected] = useState<boolean>(true);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // ── State Simulasi Live Demo Multi-Siklus (Tersimpan di LocalStorage) ──
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [isFrozen, setIsFrozen] = useState<boolean>(false);
-  const [generationCount, setGenerationCount] = useState<number>(0);
-  const [activeCycleTab, setActiveCycleTab] = useState<"s1" | "s2" | "s3">("s1");
-  const [elapsedSec, setElapsedSec] = useState<number>(0);
-  const [countdownSec, setCountdownSec] = useState<number>(60);
-
-  // Datasets 3 Siklus (Tersimpan di LocalStorage)
-  const [s1Readings, setS1Readings] = useState<Reading[]>([]);
-  const [s2Readings, setS2Readings] = useState<Reading[]>([]);
-  const [s3Readings, setS3Readings] = useState<Reading[]>([]);
-
-  // Baseline referensi (diambil dari API saat mulai)
-  const [baseTds, setBaseTds] = useState<number>(1078);
-  const [baseVolt, setBaseVolt] = useState<number>(0.421);
-  const [baseTimestampSec, setBaseTimestampSec] = useState<number>(Math.floor(Date.now() / 1000));
-
-  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
-
-  // 1. Inisialisasi dari LocalStorage saat Mount
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storedState = loadStoredDemoState();
-    setIsRunning(storedState.isRunning);
-    setIsFrozen(storedState.isFrozen);
-    setGenerationCount(storedState.generationCount);
-    setActiveCycleTab(storedState.activeCycleTab || "s1");
-    setElapsedSec(storedState.elapsedSec || 0);
-    if (storedState.baseTds) setBaseTds(storedState.baseTds);
-    if (storedState.baseVolt) setBaseVolt(storedState.baseVolt);
-
-    const s1 = loadStoredCycleData("s1");
-    const s2 = loadStoredCycleData("s2");
-    const s3 = loadStoredCycleData("s3");
-    setS1Readings(s1);
-    setS2Readings(s2);
-    setS3Readings(s3);
-  }, []);
-
-  // Format durasi berjalan
-  const durationFormatted = useMemo(() => {
-    const h = Math.floor(elapsedSec / 3600);
-    const m = Math.floor((elapsedSec % 3600) / 60);
-    const s = elapsedSec % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }, [elapsedSec]);
-
-  // 2. Fetch Data dari REST API (Polling Cepat setiap 3 detik)
-  const loadApiData = useCallback(async () => {
+  // Poll live data from API
+  const loadSummaryData = async () => {
     try {
-      setApiError(null);
-      const data = await fetchSummary(15);
+      const data = await fetchSummary(100, "https://mfc-d1-api.derylchrist08.workers.dev");
       setSummary(data);
       setIsApiConnected(true);
-      setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-
-      // Jika ada data terkini dari API, perbarui baseline
-      const latest = data.latest || (data.history && data.history.length > 0 ? data.history[data.history.length - 1] : null);
-      if (latest && latest.tds != null) {
-        setBaseTds(Number(latest.tds.toFixed(2)));
-        if (latest.voltage != null) {
-          setBaseVolt(Number(latest.voltage.toFixed(3)));
-        }
-        if (latest.timestamp) {
-          setBaseTimestampSec(Math.floor(parseTimestamp(latest.timestamp).getTime() / 1000));
-        }
-      }
+      setError(null);
     } catch (err: any) {
       setIsApiConnected(false);
-      setApiError(err instanceof Error ? err.message : "Gagal menghubungi API");
-    } finally {
-      setIsLoading(false);
+      setError(err?.message || "Gagal memuat telemetri");
     }
+  };
+
+  useEffect(() => {
+    loadSummaryData();
+    const interval = setInterval(loadSummaryData, 4000);
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    loadApiData();
-    // Polling setiap 3 detik agar telemetri riil dari ESP32/API langsung terdeteksi
-    const interval = setInterval(() => {
-      loadApiData();
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [loadApiData]);
-
-  // 3. Timer Durasi Berjalan Sesi (setiap detik)
-  useEffect(() => {
-    if (!isRunning || isFrozen) return;
-    const timer = setInterval(() => {
-      setElapsedSec((prev) => {
-        const next = prev + 1;
-        if (next % 5 === 0) {
-          const currentState = loadStoredDemoState();
-          saveStoredDemoState({ ...currentState, elapsedSec: next });
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isRunning, isFrozen]);
-
-  // Simpan perubahan tab ke localStorage
-  const handleSelectTab = (tab: "s1" | "s2" | "s3") => {
-    setActiveCycleTab(tab);
-    const currentState = loadStoredDemoState();
-    saveStoredDemoState({ ...currentState, activeCycleTab: tab });
-  };
-
-  // 4. Fungsi Inti: Eksekusi 1 Generasi Data Simultan untuk Ketiga Siklus (S1, S2, S3)
-  const executeGenerationStep = useCallback((
-    stepNumber: number,
-    customBaseTds?: number,
-    customBaseVolt?: number,
-    customBaseTs?: number
-  ) => {
-    if (stepNumber > 50) return;
-
-    const bTds = customBaseTds ?? baseTds;
-    const bVolt = customBaseVolt ?? baseVolt;
-    const bTs = customBaseTs ?? baseTimestampSec;
-
-    // Generate titik baru untuk ketiga siklus secara bersamaan
-    const newP1 = generateCycleReadingPoint("s1", stepNumber, bTds, bVolt, bTs);
-    const newP2 = generateCycleReadingPoint("s2", stepNumber, bTds, bVolt, bTs);
-    const newP3 = generateCycleReadingPoint("s3", stepNumber, bTds, bVolt, bTs);
-
-    setS1Readings((prev) => {
-      const updated = [...prev, newP1];
-      saveStoredCycleData("s1", updated);
-      return updated;
-    });
-
-    setS2Readings((prev) => {
-      const updated = [...prev, newP2];
-      saveStoredCycleData("s2", updated);
-      return updated;
-    });
-
-    setS3Readings((prev) => {
-      const updated = [...prev, newP3];
-      saveStoredCycleData("s3", updated);
-      return updated;
-    });
-
-    setGenerationCount(stepNumber);
-    setCountdownSec(60); // Reset hitung mundur
-
-    const willFreeze = stepNumber >= 50;
-    if (willFreeze) {
-      setIsFrozen(true);
-      setNotificationMsg("Batas maksimum 50 data generasi tercapai (FREEZE). Demo terkunci hingga dihentikan.");
-    } else {
-      setNotificationMsg(`✓ Data Jam ke-${stepNumber} masuk simultan untuk Siklus 1, 2, dan 3 (LocalStorage).`);
-      setTimeout(() => setNotificationMsg(null), 4000);
-    }
-
-    const stateToSave: DemoState = {
-      isRunning: true,
-      isFrozen: willFreeze,
-      generationCount: stepNumber,
-      startedAt: Date.now(),
-      lastGeneratedAt: Date.now(),
-      elapsedSec,
-      activeCycleTab,
-      baseTds: bTds,
-      baseVolt: bVolt,
-    };
-    saveStoredDemoState(stateToSave);
-  }, [baseTds, baseVolt, baseTimestampSec, elapsedSec, activeCycleTab]);
-
-  // 5. Mesin Simulasi Otomatis dengan Hitung Mundur Detik (Countdown)
-  // Setiap 1 detik countdown berkurang. Saat countdown = 0, step baru digenerate!
-  const currentCountRef = useRef(generationCount);
-  useEffect(() => {
-    currentCountRef.current = generationCount;
-  }, [generationCount]);
-
-  useEffect(() => {
-    if (!isRunning || isFrozen) return;
-
-    const interval = setInterval(() => {
-      setCountdownSec((prev) => {
-        if (prev <= 1) {
-          const nextCount = currentCountRef.current + 1;
-          if (nextCount <= 50) {
-            executeGenerationStep(nextCount);
-          }
-          return 60;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isRunning, isFrozen, executeGenerationStep]);
-
-  // 6. Handler Mulai Demo (LANGSUNG GENERASI TITIK PERTAMA SEKETIKA!)
-  const handleStartDemo = () => {
-    if (isFrozen) {
-      setNotificationMsg("Sesi telah mencapai batas 50 generasi. Klik Akhiri Demo untuk mereset.");
-      return;
-    }
-
-    // Ambil data terbaru API sebagai baseline awal
-    const apiLatest = summary.latest || (summary.history && summary.history.length > 0 ? summary.history[summary.history.length - 1] : null);
-    let initialTds = baseTds;
-    let initialVolt = baseVolt;
-    let initialTimestamp = baseTimestampSec;
-
-    if (apiLatest && apiLatest.tds != null) {
-      initialTds = Number(apiLatest.tds.toFixed(2));
-      if (apiLatest.voltage != null) initialVolt = Number(apiLatest.voltage.toFixed(3));
-      if (apiLatest.timestamp) initialTimestamp = Math.floor(parseTimestamp(apiLatest.timestamp).getTime() / 1000);
-      setBaseTds(initialTds);
-      setBaseVolt(initialVolt);
-      setBaseTimestampSec(initialTimestamp);
-    }
-
-    setIsRunning(true);
-    setCountdownSec(60);
-
-    // KUNCI: JIKA BELUM ADA DATA, LANGSUNG MASUKKAN TITIK JAM KE-1 SEKETIKA!
-    // Sehingga pengguna TIDAK PERLU menunggu 1 menit dalam keadaan grafik kosong!
-    if (generationCount === 0) {
-      executeGenerationStep(1, initialTds, initialVolt, initialTimestamp);
-      setNotificationMsg("✓ Sesi demo aktif! Titik Jam ke-1 langsung dimasukkan. Titik berikutnya otomatis setiap 60 detik.");
-    } else {
-      setNotificationMsg(`✓ Sesi demo aktif melanjutkan generasi ke-${generationCount}.`);
-    }
-
-    const newState: DemoState = {
-      isRunning: true,
-      isFrozen: false,
-      generationCount: generationCount === 0 ? 1 : generationCount,
-      startedAt: Date.now(),
-      lastGeneratedAt: Date.now(),
-      elapsedSec,
-      activeCycleTab,
-      baseTds: initialTds,
-      baseVolt: initialVolt,
-    };
-    saveStoredDemoState(newState);
-  };
-
-  // 7. Handler Manual Step Simulasi (+1 Jam / +1 Menit ke LocalStorage)
-  const handleManualSimulateStep = () => {
-    if (!isRunning) {
-      setNotificationMsg("Klik 'Mulai Demo' terlebih dahulu sebelum memasukkan data generasi.");
-      setTimeout(() => setNotificationMsg(null), 3000);
-      return;
-    }
-    if (isFrozen || generationCount >= 50) {
-      setNotificationMsg("Batas 50 data generasi telah tercapai (FREEZE). Sesi hanya bisa dihentikan.");
-      return;
-    }
-    const nextStep = generationCount + 1;
-    executeGenerationStep(nextStep);
-  };
-
-  // 8. Handler Akhiri Demo (Otomatis Hapus Seluruh Data di LocalStorage)
-  const handleStopDemo = () => {
-    clearStoredDemoData();
-    setIsRunning(false);
-    setIsFrozen(false);
-    setGenerationCount(0);
-    setElapsedSec(0);
-    setCountdownSec(60);
-    setS1Readings([]);
-    setS2Readings([]);
-    setS3Readings([]);
-
-    setNotificationMsg("✓ Sesi demo dihentikan. Seluruh data simulasi di LocalStorage telah dibersihkan.");
-    setTimeout(() => setNotificationMsg(null), 4000);
-  };
-
-  // ── Penentuan Sumber Data yang Sedang Ditampilkan ──
-  // Mode A: Simulasi Multi-Siklus Aktif (saat demo berjalan dan ada data generasi)
-  // Mode B: Live API Stream (saat demo belum berjalan tapi data API dari Cloudflare/ESP32 tersedia)
-  const activeCycleConfig = CYCLE_CONFIGS[activeCycleTab];
-  const activeDataset = useMemo(() => {
-    if (activeCycleTab === "s1") return s1Readings;
-    if (activeCycleTab === "s2") return s2Readings;
-    return s3Readings;
-  }, [activeCycleTab, s1Readings, s2Readings, s3Readings]);
-
-  const isSimulationActive = isRunning && activeDataset.length > 0;
-  const hasSimData = activeDataset.length > 0;
-  const hasApiData = Boolean(summary.latest || (summary.history && summary.history.length > 0));
-
-  // Data Terkini: Prioritaskan dataset simulasi siklus aktif jika demo berjalan; jika tidak, tampilkan telemetri riil API!
-  const latestReading = useMemo(() => {
-    if (hasSimData) {
-      return activeDataset[activeDataset.length - 1];
-    }
-    if (summary.latest) return summary.latest;
-    if (summary.history && summary.history.length > 0) return summary.history[summary.history.length - 1];
-    return null;
-  }, [hasSimData, activeDataset, summary.latest, summary.history]);
-
-  const latestTdsVal = latestReading?.tds != null ? Number(latestReading.tds.toFixed(2)) : null;
-  const latestVoltVal = latestReading?.voltage != null ? Number(latestReading.voltage.toFixed(3)) : null;
-
-  // Dataset Riwayat API Terurut Kronologis
-  const sortedApiHistory = useMemo(() => {
-    const raw = summary.history || [];
-    return [...raw].sort(
+  // Sorted history chronologically
+  const sortedHistory = useMemo(() => {
+    if (!summary.history || summary.history.length === 0) return [];
+    return [...summary.history].sort(
       (a, b) => parseTimestamp(a.timestamp).getTime() - parseTimestamp(b.timestamp).getTime()
     );
   }, [summary.history]);
 
-  // Dataset Grafik TDS Live untuk Recharts
-  const chartTdsData = useMemo(() => {
-    // 1. Jika ada data simulasi siklus, tampilkan data siklus aktif
-    if (hasSimData) {
-      return activeDataset.map((item, idx) => ({
-        waktu: `Jam ${idx + 1}`,
-        rawTime: formatTime(item.timestamp),
-        tds: item.tds != null ? Number(item.tds.toFixed(2)) : null,
-      }));
+  // Map into single demo dataset with interval 1 hour
+  const demoReadings: CycleReading[] = useMemo(() => {
+    if (sortedHistory.length === 0) return [];
+    return sortedHistory.map((d, index) => {
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.2;
+      return {
+        hour: index, // interval 1 jam per langkah data
+        actualTime: `${formatDate(d.timestamp)} ${formatTime(d.timestamp)}`,
+        tds: d.tds != null ? Number(d.tds.toFixed(2)) : 0,
+        voltage: Number(v.toFixed(3)),
+        status: "VALID",
+      };
+    });
+  }, [sortedHistory]);
+
+  // Baseline and latest readings
+  const baselineTds = demoReadings.length > 0 ? demoReadings[0].tds : 0;
+  const latestReading = demoReadings.length > 0 ? demoReadings[demoReadings.length - 1] : null;
+
+  // Penurunan akhir dari data pertama (%)
+  const overallReductionPct =
+    baselineTds > 0 && latestReading
+      ? ((baselineTds - latestReading.tds) / baselineTds) * 100
+      : 0;
+
+  // Voltage range
+  const voltages = demoReadings.map((r) => r.voltage);
+  const minVolt = voltages.length > 0 ? Math.min(...voltages) : 0;
+  const maxVolt = voltages.length > 0 ? Math.max(...voltages) : 0;
+
+  // Linear Regression
+  const regressionResult = useMemo(() => {
+    return calculateTdsRegression(demoReadings);
+  }, [demoReadings]);
+
+  // Pearson Correlation
+  const pearsonResult = useMemo(() => {
+    return calculatePearsonCorrelation(demoReadings);
+  }, [demoReadings]);
+
+  // Target Reading (first reading <= 1000 mg/L)
+  const targetReadingFirst = useMemo(() => {
+    return demoReadings.find((r) => r.tds <= 1000);
+  }, [demoReadings]);
+
+  // Scatter Data: X = % Penurunan TDS, Y = Tegangan V
+  const scatterData = useMemo(() => {
+    if (demoReadings.length === 0 || baselineTds === 0) return [];
+    return demoReadings.map((r) => {
+      const reductionPct = ((baselineTds - r.tds) / baselineTds) * 100;
+      return {
+        x: Number(reductionPct.toFixed(2)),
+        y: Number(r.voltage.toFixed(3)),
+      };
+    });
+  }, [demoReadings, baselineTds]);
+
+  const sortedScatterData = useMemo(() => {
+    const list = [...scatterData].sort((a, b) => a.x - b.x);
+    return list.map((item, idx) => ({
+      ...item,
+      labelPos: idx % 2 === 0 ? "above" : "below",
+    }));
+  }, [scatterData]);
+
+  const minScatterX = useMemo(() => {
+    if (sortedScatterData.length === 0) return 0;
+    const min = Math.min(...sortedScatterData.map((d) => d.x));
+    return Math.floor(min - 1);
+  }, [sortedScatterData]);
+
+  const maxScatterX = useMemo(() => {
+    if (sortedScatterData.length === 0) return 10;
+    const max = Math.max(...sortedScatterData.map((d) => d.x));
+    return Math.ceil(max + 1);
+  }, [sortedScatterData]);
+
+  // Linear Trendline Data for Scatter Plot
+  const trendlineData = useMemo(() => {
+    if (scatterData.length < 2) return [];
+
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumX2 = 0;
+    const n = scatterData.length;
+
+    for (const p of scatterData) {
+      sumX += p.x;
+      sumY += p.y;
+      sumXY += p.x * p.y;
+      sumX2 += p.x * p.x;
     }
 
-    // 2. Jika sesi demo belum aktif tetapi ada data dari API, tampilkan data API riil langsung!
-    if (sortedApiHistory.length > 0) {
-      return sortedApiHistory.map((item) => ({
-        waktu: formatTime(item.timestamp),
-        rawTime: formatTime(item.timestamp),
-        tds: item.tds != null ? Number(item.tds.toFixed(2)) : null,
-      }));
-    }
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return [];
 
-    // 3. Fallback kosong murni jika belum ada data dari manapun
-    return EMPTY_AXIS_PLACEHOLDER;
-  }, [hasSimData, activeDataset, sortedApiHistory]);
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
 
-  // Dataset Grafik Tegangan Live untuk Recharts
-  const chartVoltData = useMemo(() => {
-    if (hasSimData) {
-      return activeDataset.map((item, idx) => ({
-        waktu: `Jam ${idx + 1}`,
-        rawTime: formatTime(item.timestamp),
-        tegangan: item.voltage != null ? Number(item.voltage.toFixed(3)) : null,
-      }));
-    }
+    const startX = minScatterX;
+    const endX = maxScatterX;
 
-    if (sortedApiHistory.length > 0) {
-      return sortedApiHistory.map((item) => ({
-        waktu: formatTime(item.timestamp),
-        rawTime: formatTime(item.timestamp),
-        tegangan: item.voltage != null ? Number(item.voltage.toFixed(3)) : null,
-      }));
-    }
+    return [
+      { x: startX, y: Number((slope * startX + intercept).toFixed(4)), isTrendline: true },
+      { x: endX, y: Number((slope * endX + intercept).toFixed(4)), isTrendline: true },
+    ];
+  }, [scatterData, minScatterX, maxScatterX]);
 
-    return EMPTY_AXIS_PLACEHOLDER;
-  }, [hasSimData, activeDataset, sortedApiHistory]);
+  // Chart data fallbacks
+  const demoChartData = useMemo(() => {
+    if (demoReadings.length > 0) return demoReadings;
+    return [
+      { hour: 0, tds: 1000, voltage: 0.3 },
+      { hour: 1, tds: 1000, voltage: 0.3 },
+      { hour: 2, tds: 1000, voltage: 0.3 },
+      { hour: 3, tds: 1000, voltage: 0.3 },
+    ];
+  }, [demoReadings]);
 
-  const hasAnyData = hasSimData || sortedApiHistory.length > 0;
+  // Dynamic Y-Axis Domains
+  const demoTdsDomain = useMemo(() => {
+    if (demoReadings.length === 0) return [0, 1200];
+    const vals = demoReadings
+      .map((d) => d.tds)
+      .filter((v): v is number => typeof v === "number" && !isNaN(v) && v > 0);
+    if (vals.length === 0) return [0, 1200];
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const minDomain = Math.max(0, Math.floor((min - 50) / 50) * 50);
+    const maxDomain = Math.max(1050, Math.ceil((max + 50) / 50) * 50);
+    return [minDomain, maxDomain];
+  }, [demoReadings]);
+
+  const demoVoltDomain = useMemo(() => {
+    if (demoReadings.length === 0) return [0, 0.7];
+    const vals = demoReadings
+      .map((d) => d.voltage)
+      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+    if (vals.length === 0) return [0, 0.7];
+    const max = Math.max(...vals);
+    const maxDomain = Math.max(0.7, Number((Math.ceil((max + 0.1) * 10) / 10).toFixed(2)));
+    return [0, maxDomain];
+  }, [demoReadings]);
+
+  // Pagination for Demo Table (Max 6 rows per page)
+  const rowsPerPage = 6;
+  const totalPages = Math.max(1, Math.ceil(demoReadings.length / rowsPerPage));
+  const startIdx = (currentPage - 1) * rowsPerPage;
+  const endIdx = startIdx + rowsPerPage;
+  const visibleDemoReadings = demoReadings.slice(startIdx, endIdx);
+
+  const placeholderTableRows = useMemo(() => {
+    return [
+      { hour: 0, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 1, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 2, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 3, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 4, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+      { hour: 5, actualTime: "—", tds: null, voltage: null, status: "BELUM UJI" },
+    ];
+  }, []);
+
+  const displayTableRows = useMemo(() => {
+    return demoReadings.length > 0 ? visibleDemoReadings : placeholderTableRows;
+  }, [demoReadings, visibleDemoReadings, placeholderTableRows]);
+
+  // Download CSV function
+  const handleDownloadCSV = () => {
+    let csv = "\uFEFFJam ke-;Waktu Aktual;TDS (mg/L);Penurunan TDS (%);Tegangan (V);Status Data\n";
+    demoReadings.forEach((r) => {
+      const pct = baselineTds > 0 ? ((baselineTds - r.tds) / baselineTds) * 100 : 0;
+      const jam = r.actualTime ? r.actualTime.replace(/:/g, ".") : "—";
+      const tds = r.tds.toFixed(2).replace(".", ",");
+      const pctStr = pct.toFixed(2).replace(".", ",") + "%";
+      const volt = r.voltage.toFixed(3).replace(".", ",");
+      csv += `${r.hour};${jam};${tds};${pctStr};${volt};${r.status}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `data-audit-demo-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-      {/* ─────────────────────────────────────────────────────────────
-          1. HEADER TITLE & BADGES
-      ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+      {/* Header Section with Typewriter Effect and Status Badge */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <p className="text-sky-600 text-xs sm:text-sm font-semibold mb-1">Selamat datang di</p>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-slate-900 drop-shadow-sm">
-            <TypewriterText text="LIVE DEMO SMART-MFC" />
+            <TypewriterText text="Live Demo" />
           </h1>
-          <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1.5 sm:mt-2 leading-relaxed">
-            Ilustrasi simulasi multi-siklus berbasis data telemetri riil REST API (1 menit demo = 1 jam penelitian).
+          <p className="text-slate-600 text-xs sm:text-sm mt-1.5 sm:mt-2 font-medium leading-relaxed">
+            Telemetri live demo pengolahan limbah cair organik &amp; pembangkitan bio-energi SMART-MFC.
           </p>
         </div>
-
-        <div className="self-start md:self-start flex-shrink-0 pt-1 flex flex-wrap items-center gap-2">
-          {isFrozen && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-purple-100 text-purple-800 border border-purple-300 animate-pulse">
-              FREEZE (50/50 DATA)
-            </span>
-          )}
+        <div className="self-start md:self-auto flex-shrink-0">
           <Badge
-            variant={isApiConnected ? "outline-green" : "warning"}
-            icon={isApiConnected ? <Wifi size={14} /> : <FlaskConical size={14} />}
+            variant={!isApiConnected || error ? "warning" : "outline-green"}
+            icon={!isApiConnected || error ? <FlaskConical size={14} /> : <Wifi size={14} />}
           >
-            {isApiConnected ? "TERHUBUNG D1 API (LIVE)" : "MODE PENGUJIAN / SIMULASI"}
+            {!isApiConnected || error ? "MODE SIMULASI" : "TERHUBUNG D1 API (LIVE)"}
           </Badge>
         </div>
       </div>
 
-      {/* ── Status Bar Real-Time Sinkronisasi API & Hitung Mundur Simulasi ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-slate-600 font-medium">
-            API Cloudflare: <strong className="text-slate-900">{isApiConnected ? "Online (Sinkron 3 detik)" : "Mencoba menghubungkan..."}</strong>
-          </span>
-          <span className="text-slate-400">•</span>
-          <span className="text-slate-500 font-mono">Sync: {lastSyncTime}</span>
-        </div>
-
-        {isRunning && !isFrozen && (
-          <div className="flex items-center gap-2 text-sky-700 font-semibold bg-sky-50 px-3 py-1 rounded-lg border border-sky-200">
-            <Timer size={14} className="animate-spin text-sky-600" />
-            <span>Data Jam ke-{generationCount + 1} masuk dalam:</span>
-            <span className="font-mono font-bold text-sky-900 text-sm">{countdownSec}s</span>
-          </div>
-        )}
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          2. CYCLE TAB SWITCHER (SIKLUS 1 / SIKLUS 2 / SIKLUS 3)
-      ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
-            Pilih Siklus Telemetri:
-          </span>
-          <div className="inline-flex p-1 bg-slate-100/90 rounded-xl gap-1 border border-slate-200/60">
-            {(["s1", "s2", "s3"] as const).map((cycleKey) => {
-              const cfg = CYCLE_CONFIGS[cycleKey];
-              const isSelected = activeCycleTab === cycleKey;
-              return (
-                <button
-                  key={cycleKey}
-                  onClick={() => handleSelectTab(cycleKey)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? "bg-white text-sky-700 shadow-xs border border-slate-200/80"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                  }`}
-                >
-                  <span>{cfg.name}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono ${
-                      isSelected ? "bg-sky-50 text-sky-700" : "bg-slate-200/70 text-slate-500"
-                    }`}
-                  >
-                    {generationCount}/50
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Info Parameter Siklus Aktif */}
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-sky-50/80 border border-sky-100 px-3 py-1.5 rounded-xl">
-          <TrendingUp size={14} className="text-sky-600 shrink-0" />
-          <span>
-            {activeCycleConfig.name}: <strong className="text-slate-900">{activeCycleConfig.label}</strong>
-          </span>
-        </div>
-      </div>
-
-      {/* Banner Notifikasi Aksi */}
-      {notificationMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-900 shadow-2xs transition-all">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-            <span className="font-semibold">{notificationMsg}</span>
-          </div>
+      {error && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-sm shadow-sm backdrop-blur-md flex items-center gap-3">
+          <FlaskConical className="text-amber-600 flex-shrink-0" size={18} />
+          <span>Perhatian: {error}. Menampilkan data telemetri tersimpan.</span>
         </div>
       )}
 
-      {/* Banner status jika belum ada data */}
-      {!hasAnyData && (
-        <div className="p-3.5 bg-sky-50/90 border border-sky-200 rounded-2xl flex items-center gap-3 text-xs text-sky-900 shadow-2xs">
-          <Info size={17} className="text-sky-600 flex-shrink-0" />
-          <div className="flex-1 font-medium">
-            Siklus siap. Klik <strong className="text-sky-950 font-bold">Mulai Demo</strong> untuk memasukkan data awal dan menjalankan simulasi otomatis, atau hubungkan ESP32 ke API D1.
-          </div>
+      {/* Main Single-Dataset Demo View */}
+      <div className="space-y-6">
+        {/* Top Section: 4 Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Jumlah Data */}
+          <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Database size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Jumlah Data</h3>
+            </div>
+            <div className="my-auto py-1">
+              <div className="font-display text-4xl sm:text-[42px] font-extrabold text-sky-600 tracking-tight">
+                {demoReadings.length}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">Titik Data Demo</p>
+            </div>
+          </MagneticCard>
+
+          {/* Card 2: Interval 1 Jam */}
+          <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Clock size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Interval</h3>
+            </div>
+            <div className="my-auto py-1">
+              <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
+                1 jam
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">Antar Pengukuran</p>
+            </div>
+          </MagneticCard>
+
+          {/* Card 3: Penurunan Akhir dari Data Pertama */}
+          <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Penurunan akhir</h3>
+            </div>
+            <div className="my-auto py-1">
+              <div className="font-display text-3xl sm:text-4xl font-extrabold text-sky-600 tracking-tight">
+                {demoReadings.length > 0 ? `${overallReductionPct.toFixed(2).replace(".", ",")}%` : "—"}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">
+                Dari data pertama (baseline)
+              </p>
+            </div>
+          </MagneticCard>
+
+          {/* Card 4: Rentang Tegangan */}
+          <MagneticCard className="p-5 h-[165px] flex flex-col justify-between border-t-2 border-t-sky-500 border-x border-b border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Zap size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Rentang Tegangan</h3>
+            </div>
+            <div className="my-auto py-1">
+              <div className="font-display text-2xl sm:text-3xl font-extrabold text-sky-600 tracking-tight">
+                {demoReadings.length > 0
+                  ? `${minVolt.toFixed(3).replace(".", ",")} – ${maxVolt.toFixed(3).replace(".", ",")} V`
+                  : "—"}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">Selama pengujian demo</p>
+            </div>
+          </MagneticCard>
         </div>
-      )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. TOP ROW: 4 METRIC CARDS (KPIs)
-      ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* Card 1: TDS Live */}
-        <MagneticCard className="p-5 flex flex-col justify-between min-h-[170px] relative group overflow-hidden border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
-                <Droplets size={20} className={hasAnyData ? "animate-pulse" : ""} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-slate-700">TDS Live</span>
-                <span className="block text-[10px] text-sky-600 font-bold">
-                  {hasSimData ? activeCycleConfig.name : isApiConnected ? "Stream API D1" : "Menunggu"}
-                </span>
-              </div>
+        {/* Middle Section: 2 Charts Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Chart: Grafik TDS Demo */}
+          <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 relative">
+            <div className="mb-2">
+              <h3 className="font-display font-bold text-slate-900 text-base">Grafik TDS Demo</h3>
+              <p className="text-xs text-slate-500 font-medium">TDS (mg/L)</p>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display font-black text-3xl sm:text-4xl text-slate-900 tracking-tight">
-                {isLoading ? "..." : latestTdsVal !== null ? latestTdsVal.toLocaleString("id-ID") : "--"}
-              </span>
-              <span className="text-sm font-bold text-slate-500">mg/L</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              {hasSimData
-                ? `Pembacaan jam ke-${generationCount}`
-                : latestTdsVal !== null
-                ? "Pembacaan sensor dari API"
-                : "Menunggu data masuk"}
-            </p>
-          </div>
-          <div>
-            <span
-              className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                latestTdsVal !== null
-                  ? "bg-sky-50 text-sky-700 border border-sky-200/80"
-                  : "bg-slate-100 text-slate-500 border border-slate-200"
-              }`}
-            >
-              {latestTdsVal !== null ? "TERBACA" : "MENUNGGU"}
-            </span>
-          </div>
-        </MagneticCard>
-
-        {/* Card 2: Tegangan Live */}
-        <MagneticCard className="p-5 flex flex-col justify-between min-h-[170px] relative group overflow-hidden border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
-                <Zap size={20} className={hasAnyData ? "animate-pulse" : ""} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-slate-700">Tegangan Live</span>
-                <span className="block text-[10px] text-sky-600 font-bold">
-                  {hasSimData ? activeCycleConfig.name : isApiConnected ? "Stream API D1" : "Menunggu"}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display font-black text-3xl sm:text-4xl text-slate-900 tracking-tight">
-                {isLoading ? "..." : latestVoltVal !== null ? latestVoltVal.toFixed(3).replace(".", ",") : "--"}
-              </span>
-              <span className="text-sm font-bold text-slate-500">V</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              {hasSimData
-                ? "Tegangan MFC siklus terpilih"
-                : latestVoltVal !== null
-                ? "Tegangan aktual reaktor"
-                : "Tegangan Reaktor (Menunggu Data)"}
-            </p>
-          </div>
-          <div>
-            <span
-              className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                latestVoltVal !== null
-                  ? "bg-sky-50 text-sky-700 border border-sky-200/80"
-                  : "bg-slate-100 text-slate-500 border border-slate-200"
-              }`}
-            >
-              {latestVoltVal !== null ? "TERBACA" : "MENUNGGU"}
-            </span>
-          </div>
-        </MagneticCard>
-
-        {/* Card 3: Status Perangkat */}
-        <MagneticCard className="p-5 flex flex-col justify-between min-h-[170px] relative group overflow-hidden border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
-                <Wifi size={20} />
-              </div>
-              <span className="text-sm font-semibold text-slate-700">Status Perangkat</span>
-            </div>
-            <div className="flex items-baseline">
-              <span
-                className={`font-display font-black text-2xl sm:text-3xl tracking-wide ${
-                  isFrozen
-                    ? "text-purple-600"
-                    : isRunning
-                    ? "text-emerald-600"
-                    : isApiConnected
-                    ? "text-emerald-600"
-                    : "text-slate-500"
-                }`}
-              >
-                {isFrozen ? "FREEZE" : isRunning ? "AKTIF" : isApiConnected ? "TERHUBUNG" : "OFFLINE"}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1.5 font-medium">
-              {isFrozen
-                ? "50 data tercapai • Siap dihentikan"
-                : isRunning
-                ? `Simulasi aktif • ${generationCount}/50 data`
-                : isApiConnected
-                ? "ESP32 terhubung • API D1 Aktif"
-                : "Sesi demo dihentikan"}
-            </p>
-          </div>
-          <div>
-            <span
-              className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                isFrozen
-                  ? "bg-purple-50 text-purple-700 border border-purple-200"
-                  : isRunning
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                  : isApiConnected
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                  : "bg-slate-100 text-slate-600 border border-slate-200"
-              }`}
-            >
-              {isFrozen ? "LOCKED" : isRunning ? "RUNNING" : isApiConnected ? "ONLINE" : "STOPPED"}
-            </span>
-          </div>
-        </MagneticCard>
-
-        {/* Card 4: Sesi Demonstrasi */}
-        <MagneticCard className="p-5 flex flex-col justify-between min-h-[170px] relative group overflow-hidden border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
-                <Clock size={20} />
-              </div>
-              <span className="text-sm font-semibold text-slate-700">Sesi Demonstrasi</span>
-            </div>
-            <div className="flex items-baseline">
-              <span
-                className={`font-display font-black text-2xl sm:text-3xl tracking-wide ${
-                  isRunning ? "text-emerald-600" : "text-amber-600"
-                }`}
-              >
-                {isRunning ? "BERJALAN" : "DIHENTIKAN"}
-              </span>
-            </div>
-            <div className="mt-1.5 space-y-0.5 text-xs text-slate-600 font-medium">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Waktu simulasi</span>
-                <span className="font-mono font-semibold text-slate-800">
-                  {latestReading?.timestamp ? formatFullTime(latestReading.timestamp) : "--:--:--"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Durasi demo</span>
-                <span className="font-mono font-semibold text-slate-800">{durationFormatted}</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <span
-              className={`inline-block mt-4 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                isRunning
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                  : "bg-amber-50 text-amber-700 border border-amber-200"
-              }`}
-            >
-              {isRunning ? "AKTIF" : "PAUSED"}
-            </span>
-          </div>
-        </MagneticCard>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          4. MIDDLE ROW: 2 CHARTS (GRAFIK TDS LIVE & GRAFIK TEGANGAN LIVE)
-      ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-        {/* Chart 1: Grafik TDS Live */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2.5 mb-4">
-              <div className="flex items-start gap-2.5">
-                <Droplets className="text-sky-600 flex-shrink-0 mt-0.5" size={18} />
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-tight">
-                    Grafik TDS Live — {hasSimData ? activeCycleConfig.name : "Telemetri Real-Time"}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {hasSimData
-                      ? `Model Linier: Slope +${activeCycleConfig.slope} mg/L/jam (R² ${activeCycleConfig.r2})`
-                      : hasAnyData
-                      ? "Menampilkan data telemetri real-time dari API Cloudflare D1"
-                      : "Menunggu data masuk dari sensor / simulasi"}
-                  </p>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                {hasSimData ? "Local Storage" : "REST API D1"}
-              </span>
-            </div>
-
-            <div className="h-64 sm:h-72 w-full mt-2 relative">
+            <div className="h-[320px] w-full mt-4 pb-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartTdsData}
-                  margin={{ top: 25, right: 30, left: 5, bottom: 35 }}
-                >
+                <AreaChart data={demoChartData} margin={{ top: 25, right: 35, left: 10, bottom: 45 }}>
                   <defs>
-                    <linearGradient id="tdsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.02} />
+                    <linearGradient id="colorTdsDemo" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0284C7" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
+                    stroke="#CBD5E1"
                     vertical={true}
                     horizontal={true}
-                    stroke="#CBD5E1"
                     strokeOpacity={0.6}
                   />
                   <XAxis
-                    dataKey="waktu"
-                    axisLine={{ stroke: "#CBD5E1" }}
+                    dataKey="hour"
+                    stroke="#64748B"
+                    fontSize={11}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#64748B", fontWeight: 500 }}
-                    padding={{ left: 20, right: 20 }}
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    padding={{ left: 25, right: 25 }}
+                    tickMargin={10}
                     label={{
-                      value: hasSimData ? "Jam Penelitian (Simulasi)" : "Waktu Pengambilan",
+                      value: "Jam ke-",
                       position: "insideBottom",
-                      offset: -20,
-                      fontSize: 11,
+                      offset: -25,
                       fill: "#475569",
+                      fontSize: 11,
                       fontWeight: 500,
                     }}
                   />
                   <YAxis
-                    domain={hasAnyData ? ["dataMin - 30", "dataMax + 30"] : [600, 1600]}
-                    ticks={hasAnyData ? undefined : [600, 850, 1100, 1350, 1600]}
-                    axisLine={{ stroke: "#CBD5E1" }}
+                    stroke="#64748B"
+                    fontSize={11}
+                    domain={demoTdsDomain}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#64748B" }}
-                    tickFormatter={(v) => typeof v === "number" ? v.toLocaleString("id-ID") : v}
-                    label={{
-                      value: "TDS (mg/L)",
-                      angle: -90,
-                      position: "insideLeft",
-                      offset: 14,
-                      fontSize: 10,
-                      fill: "#94A3B8",
-                      fontWeight: 600,
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    width={45}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                            <p className="text-slate-900 font-semibold">
+                              Jam ke-{data.hour} ({data.actualTime || "Aktual"})
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sky-700 font-bold">
+                                TDS:{" "}
+                                {typeof data.tds === "number"
+                                  ? data.tds.toLocaleString("id-ID")
+                                  : data.tds}{" "}
+                                mg/L
+                              </span>
+                            </div>
+                            {data.status && (
+                              <p className="text-[10px] text-slate-500 font-medium">
+                                Status: {data.status}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
-                  <Tooltip content={<CustomChartTooltip unit="mg/L" />} />
-                  {/* Garis Target Operasional TDS ≤ 1.000 mg/L */}
                   <ReferenceLine
                     y={1000}
                     stroke="#EF4444"
                     strokeDasharray="3 3"
                     label={{
-                      value: "Target Operasional TDS ≤1.000 mg/L",
+                      value: "Target operasional TDS ≤ 1.000 mg/L",
                       fill: "#EF4444",
                       fontSize: 10,
-                      position: "insideBottomLeft",
+                      position: "insideTopLeft",
                     }}
                   />
-                  {hasAnyData && (
-                    <Area
-                      type="monotone"
-                      dataKey="tds"
-                      stroke="#2563EB"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#tdsGradient)"
-                      dot={{ r: 4, fill: "#FFFFFF", stroke: "#2563EB", strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: "#2563EB", stroke: "#FFFFFF", strokeWidth: 2 }}
-                      label={<CustomTdsLabel />}
-                    />
-                  )}
+                  <Area
+                    type="monotone"
+                    dataKey="tds"
+                    name="TDS (mg/L)"
+                    stroke="#0284C7"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorTdsDemo)"
+                    dot={{ fill: "#0284C7", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: "#0284C7" }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </Card>
 
-          <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <Clock size={13} className="text-slate-400" />
-              <span>
-                {hasSimData
-                  ? `Total ${activeDataset.length} data generasi`
-                  : sortedApiHistory.length > 0
-                  ? `Total ${sortedApiHistory.length} data riwayat API`
-                  : "Menunggu Data Masuk"}
-              </span>
+          {/* Right Chart: Grafik Tegangan Demo */}
+          <Card className="p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 relative">
+            <div className="mb-2">
+              <h3 className="font-display font-bold text-slate-900 text-base">Grafik Tegangan Demo</h3>
+              <p className="text-xs text-slate-500 font-medium">Tegangan (V)</p>
             </div>
-            <span className="font-mono text-[11px] text-slate-400">
-              {hasSimData ? "1 mnt demo = 1 jam penelitian" : "Polling REST API 3 detik"}
-            </span>
-          </div>
-        </div>
-
-        {/* Chart 2: Grafik Tegangan Live */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2.5 mb-4">
-              <div className="flex items-start gap-2.5">
-                <Zap className="text-sky-600 flex-shrink-0 mt-0.5" size={18} />
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-tight">
-                    Grafik Tegangan Live — {hasSimData ? activeCycleConfig.name : "Telemetri Real-Time"}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {hasSimData
-                      ? "Fluktuasi tegangan mikro MFC terkalibrasi bio-elektrik"
-                      : hasAnyData
-                      ? "Menampilkan tegangan riil sensor MFC dari API D1"
-                      : "Menunggu data masuk dari sensor / simulasi"}
-                  </p>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                {hasSimData ? "Local Storage" : "REST API D1"}
-              </span>
-            </div>
-
-            <div className="h-64 sm:h-72 w-full mt-2 relative">
+            <div className="h-[320px] w-full mt-4 pb-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartVoltData}
-                  margin={{ top: 25, right: 30, left: 5, bottom: 35 }}
-                >
+                <AreaChart data={demoChartData} margin={{ top: 25, right: 35, left: 10, bottom: 45 }}>
                   <defs>
-                    <linearGradient id="voltGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                    <linearGradient id="colorVoltDemo" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#16A34A" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#16A34A" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
+                    stroke="#CBD5E1"
                     vertical={true}
                     horizontal={true}
-                    stroke="#CBD5E1"
                     strokeOpacity={0.6}
                   />
                   <XAxis
-                    dataKey="waktu"
-                    axisLine={{ stroke: "#CBD5E1" }}
+                    dataKey="hour"
+                    stroke="#64748B"
+                    fontSize={11}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#64748B", fontWeight: 500 }}
-                    padding={{ left: 20, right: 20 }}
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    padding={{ left: 25, right: 25 }}
+                    tickMargin={10}
                     label={{
-                      value: hasSimData ? "Jam Penelitian (Simulasi)" : "Waktu Pengambilan",
+                      value: "Jam ke-",
                       position: "insideBottom",
-                      offset: -20,
-                      fontSize: 11,
+                      offset: -25,
                       fill: "#475569",
+                      fontSize: 11,
                       fontWeight: 500,
                     }}
                   />
                   <YAxis
-                    domain={hasAnyData ? ["dataMin - 0.05", "dataMax + 0.05"] : [0.0, 1.0]}
-                    ticks={hasAnyData ? undefined : [0.0, 0.25, 0.5, 0.75, 1.0]}
-                    axisLine={{ stroke: "#CBD5E1" }}
+                    stroke="#64748B"
+                    fontSize={11}
+                    domain={demoVoltDomain}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#64748B" }}
-                    tickFormatter={(v) => typeof v === "number" ? v.toFixed(2).replace(".", ",") : v}
-                    label={{
-                      value: "Tegangan (V)",
-                      angle: -90,
-                      position: "insideLeft",
-                      offset: 14,
-                      fontSize: 10,
-                      fill: "#94A3B8",
-                      fontWeight: 600,
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    width={45}
+                    tickFormatter={(v) => (typeof v === "number" ? v.toFixed(2).replace(".", ",") : v)}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white/95 border border-sky-900/15 p-3 rounded-xl text-xs space-y-1 shadow-2xl backdrop-blur-md text-slate-900">
+                            <p className="text-slate-900 font-semibold">
+                              Jam ke-{data.hour} ({data.actualTime || "Aktual"})
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-700 font-bold">
+                                Tegangan:{" "}
+                                {typeof data.voltage === "number"
+                                  ? data.voltage.toFixed(3).replace(".", ",")
+                                  : data.voltage}{" "}
+                                V
+                              </span>
+                            </div>
+                            {data.status && (
+                              <p className="text-[10px] text-slate-500 font-medium">
+                                Status: {data.status}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
-                  <Tooltip content={<CustomChartTooltip unit="V" />} />
-                  {hasAnyData && (
-                    <Area
-                      type="monotone"
-                      dataKey="tegangan"
-                      stroke="#059669"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#voltGradient)"
-                      dot={{ r: 4, fill: "#FFFFFF", stroke: "#059669", strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: "#059669", stroke: "#FFFFFF", strokeWidth: 2 }}
-                      label={<CustomVoltLabel />}
-                    />
-                  )}
+                  <Area
+                    type="monotone"
+                    dataKey="voltage"
+                    name="Tegangan (V)"
+                    stroke="#16A34A"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorVoltDemo)"
+                    dot={{ fill: "#16A34A", stroke: "#FFFFFF", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: "#16A34A" }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <Clock size={13} className="text-slate-400" />
-              <span>
-                {hasSimData
-                  ? `Total ${activeDataset.length} data generasi`
-                  : sortedApiHistory.length > 0
-                  ? `Total ${sortedApiHistory.length} data riwayat API`
-                  : "Menunggu Data Masuk"}
-              </span>
-            </div>
-            <span className="font-mono text-[11px] text-slate-400">
-              {hasSimData ? "Sinkronisasi Simultan 3 Siklus" : "Telemetri Reaktor Aktif"}
-            </span>
-          </div>
+          </Card>
         </div>
-      </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          5. BOTTOM ROW: 3 CARDS (KONTROL SESI, INFO SESI, ALUR DATA)
-      ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* Card 1: Kontrol Sesi Demo (Col Span 3 ~25%) */}
-        <div className="lg:col-span-3 bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-              <Settings className="text-slate-700" size={17} />
-              <h3 className="font-bold text-sm text-slate-900">Kontrol Sesi Demo</h3>
+        {/* Section: Table Left & Regression Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Card: Raw Data Table */}
+          <Card className="lg:col-span-7 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
+                  Data Audit Demo — Interval 1 Jam
+                </h3>
+                <button
+                  onClick={handleDownloadCSV}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors shadow-sm"
+                >
+                  <Download size={14} />
+                  Download CSV
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="text-slate-500 bg-slate-100/80 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Jam ke-</th>
+                      <th className="py-2.5 px-3 font-semibold">Waktu Aktual</th>
+                      <th className="py-2.5 px-3 font-semibold">TDS (mg/L)</th>
+                      <th className="py-2.5 px-3 font-semibold">Penurunan TDS (%)</th>
+                      <th className="py-2.5 px-3 font-semibold">Tegangan (V)</th>
+                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                    {displayTableRows.map((row: any, idx: number) => {
+                      const isReal = row.tds != null;
+                      const pctRed =
+                        isReal && baselineTds > 0
+                          ? ((baselineTds - row.tds) / baselineTds) * 100
+                          : 0;
+                      const pctStr = isReal ? pctRed.toFixed(2).replace(".", ",") + "%" : "—";
+                      const tdsStr = isReal ? row.tds.toLocaleString("id-ID") : "—";
+                      const voltStr =
+                        row.voltage != null ? row.voltage.toFixed(3).replace(".", ",") : "—";
+
+                      let badgeStyle = "bg-slate-100 text-slate-500 border-slate-200";
+                      if (row.status === "VALID")
+                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                      if (row.status === "PERLU VERIFIKASI")
+                        badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                      if (row.status === "TIDAK TEREKAM")
+                        badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{row.hour}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{row.actualTime}</td>
+                          <td className="py-2.5 px-3 text-sky-600 font-bold">{tdsStr}</td>
+                          <td className="py-2.5 px-3 text-sky-600 font-bold">{pctStr}</td>
+                          <td className="py-2.5 px-3 text-emerald-600 font-bold">{voltStr}</td>
+                          <td className="py-2.5 px-3">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeStyle}`}
+                            >
+                              {isReal ? <Check size={11} /> : null} {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="space-y-2.5">
-              {/* Tombol Mulai Demo */}
-              <button
-                onClick={handleStartDemo}
-                disabled={isRunning || isFrozen}
-                className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-                  isRunning || isFrozen
-                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80"
-                    : "bg-sky-600 hover:bg-sky-700 text-white shadow-sm hover:shadow active:scale-[0.98]"
-                }`}
-              >
-                <Play size={15} className={isRunning || isFrozen ? "text-slate-400" : "fill-white"} />
-                <span>{generationCount > 0 ? "Lanjutkan Demo" : "Mulai Demo"}</span>
-              </button>
+            {/* Table Footer: Pagination & Subtext */}
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-slate-500 font-medium">
+                  Menampilkan {demoReadings.length > 0 ? startIdx + 1 : 1}–
+                  {demoReadings.length > 0 ? Math.min(endIdx, demoReadings.length) : 6} dari{" "}
+                  {demoReadings.length > 0 ? demoReadings.length : 6} data demo
+                </span>
+                <div className="flex items-center gap-2 font-semibold">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1 || demoReadings.length === 0}
+                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                  >
+                    ← Sebelumnya
+                  </button>
+                  <span className="text-slate-700 font-mono">
+                    Halaman <strong className="text-slate-900">{currentPage}</strong> dari{" "}
+                    <strong>{totalPages}</strong>
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages || demoReadings.length === 0}
+                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors"
+                  >
+                    Selanjutnya →
+                  </button>
+                </div>
+              </div>
 
-              {/* Tombol Akhiri Demo */}
-              <button
-                onClick={handleStopDemo}
-                disabled={!isRunning && generationCount === 0}
-                className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  !isRunning && generationCount === 0
-                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-80"
-                    : "border-2 border-rose-500 text-rose-600 hover:bg-rose-50 active:bg-rose-100 shadow-2xs active:scale-[0.98]"
-                }`}
-              >
-                <Square size={14} className={!isRunning && generationCount === 0 ? "text-slate-400" : "fill-rose-600 text-rose-600"} />
-                <span>Akhiri Demo</span>
-              </button>
-
-              {/* Tombol Simulasi Manual Step (+1 Jam ke LocalStorage) */}
-              <button
-                onClick={handleManualSimulateStep}
-                disabled={!isRunning || isFrozen}
-                className="w-full mt-2 py-2 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 active:bg-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-                title="Generate 1 titik jam berikutnya secara instan ke local storage"
-              >
-                <FastForward size={13} />
-                <span>Simulasikan +1 Jam (Step)</span>
-              </button>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                <Database size={13} className="text-slate-400" />
+                <span>Sumber data: ESP32/AIO SMART-MFC • Timestamp tersimpan otomatis</span>
+              </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="mt-4 space-y-2">
-            <div className="p-3 bg-sky-50/80 border border-sky-100 rounded-xl flex items-start gap-2">
-              <Info size={15} className="text-sky-600 mt-0.5 flex-shrink-0" />
-              <p className="text-[10.5px] text-slate-600 leading-relaxed font-medium">
-                {isFrozen
-                  ? "Batas 50 data tercapai. Seluruh data aman di LocalStorage. Klik 'Akhiri Demo' untuk membersihkan dan reset."
-                  : isRunning
-                  ? `Sesi aktif (${generationCount}/50 data). Titik berikutnya masuk otomatis setiap 60 detik atau klik tombol Step.`
-                  : "Sesi demo dijeda / tidak aktif. Klik Mulai Demo untuk menjalankan generasi data multi-siklus."}
+          {/* Right Card: Evaluasi Prediksi Regresi Linier */}
+          <Card className="lg:col-span-5 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            <div>
+              <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base mb-4">
+                Evaluasi Prediksi Regresi Linier
+              </h3>
+
+              <div className="space-y-3 text-xs text-slate-700 font-medium">
+                <div className="flex items-center gap-2 text-sky-700 font-semibold">
+                  <Droplet size={15} className="text-sky-600 flex-shrink-0" />
+                  <span>Target Operasional TDS ≤ 1.000 mg/L</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <Info size={15} className="text-sky-600 flex-shrink-0" />
+                    Status Prediksi
+                  </span>
+                  <span
+                    className={`font-semibold ${
+                      targetReadingFirst
+                        ? "text-emerald-600"
+                        : regressionResult.isValid
+                        ? "text-sky-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {targetReadingFirst
+                      ? "Target TDS ≤ 1.000 mg/L tercapai"
+                      : regressionResult.isValid
+                      ? "Mengestimasi target operasional"
+                      : "Menunggu data tambahan"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <ChartIcon size={15} className="text-sky-600 flex-shrink-0" />
+                    Slope regresi
+                  </span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {demoReadings.length >= 3
+                      ? `${regressionResult.a >= 0 ? "+" : ""}${regressionResult.a
+                          .toFixed(3)
+                          .replace(".", ",")} mg/L/jam`
+                      : "Menunggu data"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <Target size={15} className="text-sky-600 flex-shrink-0" />
+                    R² regresi
+                  </span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {demoReadings.length >= 3 ? regressionResult.rSquaredStr : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <Clock size={15} className="text-sky-600 flex-shrink-0" />
+                    Waktu target teramati
+                  </span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {targetReadingFirst
+                      ? `Jam ke-${targetReadingFirst.hour}`
+                      : demoReadings.length > 0 && demoReadings[0].tds <= 1000
+                      ? "Jam ke-0 (Sejak Awal)"
+                      : "Belum tercapai"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <Hourglass size={15} className="text-sky-600 flex-shrink-0" />
+                    Estimasi time-to-target
+                  </span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {targetReadingFirst ? "Target telah tercapai" : regressionResult.remainingStr}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <span className="flex items-center gap-2">
+                    <Info size={15} className="text-sky-600 flex-shrink-0" />
+                    Error prediksi
+                  </span>
+                  <span className="font-mono font-bold text-sky-700">
+                    {targetReadingFirst && regressionResult.targetHourVal !== null
+                      ? `${Math.abs(targetReadingFirst.hour - regressionResult.targetHourVal)
+                          .toFixed(2)
+                          .replace(".", ",")} jam`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5 p-4 rounded-xl bg-sky-50/90 border border-sky-200 text-xs text-sky-950 space-y-1">
+                <div className="flex items-start gap-2">
+                  <Info size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+                  <p className="font-medium leading-relaxed">
+                    <strong>Status Live Demo:</strong> Data telemetri dipantau secara langsung per
+                    interval 1 jam. Nilai parameter regresi linier dan korelasi diperbarui secara
+                    otomatis setiap ada data baru dari ESP32.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Section: Hubungan % Penurunan TDS dengan Tegangan (Scatter Plot + Pearson) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Scatter Plot Chart */}
+          <Card className="lg:col-span-8 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5">
+            <div className="mb-2">
+              <h3 className="font-display font-bold text-slate-900 text-base sm:text-lg">
+                Hubungan % Penurunan TDS dengan Tegangan
+              </h3>
+            </div>
+            <div className="h-[300px] w-full mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 35, right: 65, left: 15, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Penurunan TDS"
+                    stroke="#64748B"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    domain={[minScatterX, maxScatterX]}
+                    tickFormatter={(v) => `${v}%`}
+                    label={{
+                      value: "% Penurunan TDS (%)",
+                      position: "insideBottom",
+                      offset: -15,
+                      fill: "#475569",
+                      fontSize: 11,
+                      fontWeight: 500,
+                    }}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Tegangan"
+                    stroke="#64748B"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: "#CBD5E1" }}
+                    domain={["auto", "auto"]}
+                    tickFormatter={(v) => v.toFixed(3).replace(".", ",")}
+                    width={45}
+                  />
+                  <ZAxis type="number" range={[100, 100]} />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        if (data.isTrendline) return null;
+                        return (
+                          <div className="bg-slate-900/95 text-white p-2.5 border border-slate-700 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md">
+                            <p className="text-sky-400 font-mono font-bold">
+                              Penurunan TDS: {data.x.toFixed(2).replace(".", ",")}%
+                            </p>
+                            <p className="text-emerald-400 font-mono font-bold">
+                              Tegangan MFC: {data.y.toFixed(3).replace(".", ",")} V
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  {/* Telemetry Scatter Points (Green Dots) */}
+                  <Scatter
+                    name="Titik Data"
+                    data={sortedScatterData}
+                    fill="#16A34A"
+                    line={false}
+                    shape={<RenderScatterDotWithLabel />}
+                  />
+                  {/* Linear Regression Line (Straight Blue Dashed Line) */}
+                  <Scatter
+                    name="Regresi Linear"
+                    data={trendlineData}
+                    line={{ stroke: "#0284C7", strokeWidth: 2, strokeDasharray: "6 6" }}
+                    shape={() => <g />}
+                    legendType="none"
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-6 mt-2 text-xs font-semibold text-slate-700">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-[#16A34A]"></span>
+                <span>Titik data (n = {demoReadings.length})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-8 border-b-2 border-dashed border-[#0284C7]"></span>
+                <span>Garis regresi linier</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Right: Pearson Statistics Panel */}
+          <Card className="lg:col-span-4 p-6 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            <div>
+              <h3 className="font-display font-bold text-slate-900 text-base mb-4">
+                Statistik Korelasi
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="font-bold text-xs text-slate-800">Pearson r</span>
+                  <span className="font-mono font-extrabold text-base text-sky-700">
+                    {demoReadings.length >= 3 ? pearsonResult.rStr : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="font-bold text-xs text-slate-800">p-value</span>
+                  <span className="font-mono font-extrabold text-base text-sky-700">
+                    {demoReadings.length >= 3 ? pearsonResult.pValueStr : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="font-bold text-xs text-slate-800">n (jumlah data)</span>
+                  <span className="font-mono font-extrabold text-base text-sky-700">
+                    {demoReadings.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2">
+                <h5 className="font-bold text-xs text-amber-900">Interpretasi:</h5>
+                <p className="text-xs font-semibold text-amber-950 leading-relaxed">
+                  {demoReadings.length >= 3
+                    ? pearsonResult.interpretation
+                    : "Belum ada data pengujian yang cukup. Perhitungan korelasi Pearson akan terisi otomatis setelah minimal 3 data terekam."}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Bottom Cards: Baseline TDS (Tanpa TDS Akhir) and Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Card 1: Baseline TDS */}
+          <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Droplet size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Baseline TDS</h3>
+            </div>
+            <div className="my-auto py-1">
+              <div className="font-display text-3xl font-extrabold text-sky-600 tracking-tight">
+                {demoReadings.length > 0 ? `${baselineTds.toFixed(2).replace(".", ",")} mg/L` : "—"}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">
+                Nilai awal (jam ke-0 / data pertama)
               </p>
             </div>
-          </div>
-        </div>
+          </MagneticCard>
 
-        {/* Card 2: Info Sesi (Col Span 3 ~25%) */}
-        <div className="lg:col-span-3 bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-              <Info className="text-slate-700" size={17} />
-              <h3 className="font-bold text-sm text-slate-900">Info Sesi</h3>
+          {/* Card 2: Status Evaluasi Demo */}
+          <MagneticCard className="p-5 border-sky-900/10 bg-white/80 backdrop-blur-md shadow-xl shadow-sky-950/5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-sky-100/80 border border-sky-200/80 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <Flag size={17} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">Status Pengujian Demo</h3>
             </div>
-
-            <div className="space-y-2 text-[11px] sm:text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <Layers size={13} className="text-slate-400 shrink-0" />
-                  <span>Siklus Aktif</span>
-                </div>
-                <span className="text-sky-700 font-bold text-right">
-                  {hasSimData ? activeCycleConfig.name : "Stream API Langsung"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <TrendingUp size={13} className="text-slate-400 shrink-0" />
-                  <span>Slope / R²</span>
-                </div>
-                <span className="text-slate-800 font-semibold text-right">
-                  +{activeCycleConfig.slope} / {activeCycleConfig.r2}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <Hourglass size={13} className="text-slate-400 shrink-0" />
-                  <span>Generasi Data</span>
-                </div>
-                <span className="font-mono font-bold text-slate-800">{generationCount} / 50</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <RefreshCw size={13} className="text-slate-400 shrink-0" />
-                  <span>Interval Demo</span>
-                </div>
-                <span className="text-slate-800 font-semibold">1 mnt (= 1 jam)</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <Database size={13} className="text-slate-400 shrink-0" />
-                  <span>Penyimpanan</span>
-                </div>
-                <span className="text-emerald-700 font-semibold text-right">LocalStorage</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <Droplets size={13} className="text-sky-600 shrink-0" />
-                  <span>TDS Terakhir</span>
-                </div>
-                <span className="font-bold text-slate-900">
-                  {latestTdsVal !== null ? `${latestTdsVal.toLocaleString("id-ID")} mg/L` : "--"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                  <Zap size={13} className="text-amber-500 shrink-0" />
-                  <span>Tegangan</span>
-                </div>
-                <span className="font-bold text-slate-900">
-                  {latestVoltVal !== null ? `${latestVoltVal.toFixed(3).replace(".", ",")} V` : "--"}
-                </span>
+            <div className="my-auto py-1">
+              <div className="font-sans text-sm font-bold text-slate-800 leading-snug">
+                {latestReading && latestReading.tds <= 1000
+                  ? "Target TDS ≤ 1.000 mg/L terpenuhi. Kualitas air olahan memenuhi standar operasional."
+                  : "Dalam pemantauan live telemetri terintegrasi."}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Card 3: Alur Data Live (Ilustrasi) (Col Span 6 ~50%) */}
-        <div className="lg:col-span-6 bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between min-w-0">
-          <div>
-            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-              <Share2 size={16} className="text-slate-700 flex-shrink-0" />
-              <h3 className="font-bold text-sm text-slate-900">Alur Data Live (Ilustrasi)</h3>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 leading-tight">
+                Status evaluasi telemetri live
+              </p>
             </div>
-
-            {/* Diagram Alur - 100% Flexbox Penuh Membentang Tanpa Ruang Kosong di Kanan */}
-            <div className="w-full py-2">
-              <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
-                {/* Node 1: Reaktor SMART-MFC */}
-                <div className="flex-1 min-w-0 h-full flex flex-col items-center justify-between bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-2xs text-center min-h-[125px] sm:min-h-[135px]">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 mb-1">
-                    <FlaskConical size={16} />
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">
-                    Reaktor SMART-MFC
-                  </span>
-                  <span className="text-[8.5px] sm:text-[9.5px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    AKTIF
-                  </span>
-                </div>
-
-                {/* SVG Fork Connector */}
-                <div className="flex flex-col items-center justify-center w-3 sm:w-3.5 text-slate-300 shrink-0">
-                  <svg width="14" height="76" viewBox="0 0 14 76" fill="none" className="w-full">
-                    <path
-                      d="M 1 38 H 7 V 18 H 13"
-                      stroke="#94A3B8"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 7 38 V 58 H 13"
-                      stroke="#94A3B8"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <polygon points="11,16 14,18 11,20" fill="#94A3B8" />
-                    <polygon points="11,56 14,58 11,60" fill="#94A3B8" />
-                  </svg>
-                </div>
-
-                {/* Parallel Nodes 2A & 2B: Sensor TDS & Anoda-Katoda */}
-                <div className="flex-[1.15] min-w-0 h-full flex flex-col justify-between gap-1.5 min-h-[125px] sm:min-h-[135px]">
-                  {/* Node 2A */}
-                  <div className="w-full min-w-0 flex-1 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs text-center">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <Droplets size={12} className="text-sky-600 shrink-0" />
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-800 leading-tight truncate">
-                        Sensor TDS
-                      </span>
-                    </div>
-                    <span
-                      className={`text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.2 rounded-full flex items-center gap-1 ${
-                        latestTdsVal !== null
-                          ? "text-emerald-600 bg-emerald-50"
-                          : "text-slate-500 bg-slate-100"
-                      }`}
-                    >
-                      <span
-                        className={`w-1 h-1 rounded-full ${
-                          latestTdsVal !== null ? "bg-emerald-500" : "bg-slate-400"
-                        }`}
-                      ></span>
-                      {latestTdsVal !== null ? "TERBACA" : "MENUNGGU"}
-                    </span>
-                  </div>
-
-                  {/* Node 2B */}
-                  <div className="w-full min-w-0 flex-1 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs text-center">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <Zap size={12} className="text-sky-600 shrink-0" />
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-800 leading-tight truncate">
-                        Tegangan MFC
-                      </span>
-                    </div>
-                    <span
-                      className={`text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.2 rounded-full flex items-center gap-1 ${
-                        latestVoltVal !== null
-                          ? "text-emerald-600 bg-emerald-50"
-                          : "text-slate-500 bg-slate-100"
-                      }`}
-                    >
-                      <span
-                        className={`w-1 h-1 rounded-full ${
-                          latestVoltVal !== null ? "bg-emerald-500" : "bg-slate-400"
-                        }`}
-                      ></span>
-                      {latestVoltVal !== null ? "TERBACA" : "MENUNGGU"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* SVG Merge Connector to ADS1115 */}
-                <div className="flex flex-col items-center justify-center w-3 sm:w-3.5 text-slate-300 shrink-0">
-                  <svg width="14" height="76" viewBox="0 0 14 76" fill="none" className="w-full">
-                    <path
-                      d="M 1 18 H 7 V 38 H 13"
-                      stroke="#94A3B8"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 1 58 H 7 V 38"
-                      stroke="#94A3B8"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <polygon points="11,36 14,38 11,40" fill="#94A3B8" />
-                  </svg>
-                </div>
-
-                {/* Node 3: ADS1115 */}
-                <div className="flex-1 min-w-0 h-full flex flex-col items-center justify-between bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-2xs text-center min-h-[125px] sm:min-h-[135px]">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 mb-1">
-                    <Cpu size={16} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight block">
-                      ADS1115
-                    </span>
-                    <span className="text-[8px] sm:text-[8.5px] text-slate-400 font-medium">Akuisisi</span>
-                  </div>
-                  <span className="text-[8.5px] sm:text-[9.5px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-0.5 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    AKTIF
-                  </span>
-                </div>
-
-                {/* Connector Arrow */}
-                <div className="flex items-center justify-center w-2 sm:w-2.5 text-slate-400 shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="w-full">
-                    <path d="M 0 5 H 8" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" />
-                    <polygon points="6,2 10,5 6,8" fill="#94A3B8" />
-                  </svg>
-                </div>
-
-                {/* Node 4: ESP32 */}
-                <div className="flex-1 min-w-0 h-full flex flex-col items-center justify-between bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-2xs text-center min-h-[125px] sm:min-h-[135px]">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 mb-1">
-                    <Radio size={16} />
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">ESP32</span>
-                  <span
-                    className={`text-[8.5px] sm:text-[9.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 mt-1 ${
-                      isApiConnected ? "text-emerald-600 bg-emerald-50" : "text-amber-600 bg-amber-50"
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        isApiConnected ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
-                    ></span>
-                    {isApiConnected ? "TERHUBUNG" : "MENCOBA"}
-                  </span>
-                </div>
-
-                {/* Connector Arrow */}
-                <div className="flex items-center justify-center w-2 sm:w-2.5 text-slate-400 shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="w-full">
-                    <path d="M 0 5 H 8" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" />
-                    <polygon points="6,2 10,5 6,8" fill="#94A3B8" />
-                  </svg>
-                </div>
-
-                {/* Node 5: Cloud API */}
-                <div className="flex-1 min-w-0 h-full flex flex-col items-center justify-between bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-2xs text-center min-h-[125px] sm:min-h-[135px]">
-                  <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 mb-1">
-                    <Cloud size={16} />
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">
-                    Cloud API
-                  </span>
-                  <span
-                    className={`text-[8.5px] sm:text-[9.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 mt-1 ${
-                      isApiConnected ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        isApiConnected ? "bg-emerald-500" : "bg-rose-500"
-                      }`}
-                    ></span>
-                    {isApiConnected ? "ONLINE" : "OFFLINE"}
-                  </span>
-                </div>
-
-                {/* Connector Arrow */}
-                <div className="flex items-center justify-center w-2 sm:w-2.5 text-slate-400 shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="w-full">
-                    <path d="M 0 5 H 8" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" />
-                    <polygon points="6,2 10,5 6,8" fill="#94A3B8" />
-                  </svg>
-                </div>
-
-                {/* Node 6: Web Live Demo */}
-                <div className="flex-1 min-w-0 h-full flex flex-col items-center justify-between bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-2xs text-center min-h-[125px] sm:min-h-[135px]">
-                  <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 mb-1">
-                    <Monitor size={16} />
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">
-                    Web Live Demo
-                  </span>
-                  <span className="text-[8.5px] sm:text-[9.5px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-0.5 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    ONLINE
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Status Pill inside Card 3 */}
-          <div className="mt-4 px-3.5 py-2.5 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-            <span className="text-xs font-semibold text-emerald-800 leading-tight">
-              {isApiConnected
-                ? "Semua komponen terhubung ke REST API Cloudflare D1 dan alur telemetri berjalan lancar."
-                : "Alur simulasi data lokal berjalan (menunggu sinkronisasi API)."}
-            </span>
-          </div>
+          </MagneticCard>
         </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          6. BOTTOM NOTE / FOOTER BANNER
-      ───────────────────────────────────────────────────────────── */}
-      <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-2xl flex items-center gap-3 text-xs sm:text-sm text-slate-700 shadow-2xs">
-        <div className="w-7 h-7 rounded-full bg-sky-100 border border-sky-200 flex items-center justify-center text-sky-700 flex-shrink-0">
-          <Info size={16} />
-        </div>
-        <p className="leading-relaxed font-medium">
-          <span className="font-bold text-slate-900">Catatan:</span> Halaman ini digunakan untuk demonstrasi sistem SMART-MFC yang terhubung langsung ke IoT Telemetry REST API Cloudflare D1 (sinkronisasi 3 detik) serta simulasi data penelitian (Siklus 1: slope +0,458, Siklus 2: slope +1,049, Siklus 3: slope +0,131). Data simulasi tersimpan di LocalStorage dan akan otomatis dihapus saat demo dihentikan.
-        </p>
       </div>
     </div>
   );
