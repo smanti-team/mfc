@@ -29,7 +29,7 @@ import {
   Legend,
   Cell,
 } from "recharts";
-import { saveTelemetry, fetchLatest } from "@/lib/api";
+import { saveTelemetry } from "@/lib/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -1063,26 +1063,6 @@ export default function MicroEnergyModule() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [latestV, setLatestV] = useState<number | null>(null);
-
-  // Fetch API for live voltage on mount (without polling interval)
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const { latest } = await fetchLatest();
-        if (mounted && latest && latest.voltage !== null) {
-          setLatestV(latest.voltage);
-        }
-      } catch (e) {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // Load from localStorage
   useEffect(() => {
@@ -1108,52 +1088,81 @@ export default function MicroEnergyModule() {
     }
   }, []);
 
-  // ── computed summary values ────────────────────────────────────────────────
+  // ── computed summary values strictly from actual Micro-Energy test data ──
   const summaryCards = useMemo(() => {
     const p = ms.activePhase;
     if (p === 1) {
+      const aVals = ms.t1.a.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const bVals = ms.t1.b.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const allVals = [...aVals, ...bVals];
+      const avg = allVals.length > 0 ? allVals.reduce((s, v) => s + v, 0) / allVals.length : null;
+      const hasData = allVals.length > 0;
+
       return {
-        status: "—", statusSub: "Belum ada pengujian",
-        config: "—", configSub: "Belum dikonfigurasi",
-        v: latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: latestV !== null ? "Tegangan live API" : "Menunggu data",
-        d: "— mW", dSub: "Menunggu data",
+        status: ms.t1.saved ? "Tahap 1 Selesai" : hasData ? "Sedang Mengukur" : "—",
+        statusSub: ms.t1.saved ? "Tersimpan" : hasData ? "Tahap 1 berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Reaktor Tunggal\n(1A & 1B)" : "—",
+        configSub: hasData ? "Tanpa Beban (Open Circuit)" : "Belum dikonfigurasi",
+        v: avg !== null ? `${fmt(avg, 2)} V` : "— V",
+        vSub: avg !== null ? "Rata-rata 1A & 1B" : "Menunggu data",
+        d: "— mW",
+        dSub: "Menunggu data",
       };
     }
     if (p === 2) {
-      const aVals = ms.t2.a.map(r => parseV(r.tegangan));
-      const avgA = aVals.every(v => v !== null) ? aVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
-      const bVals = ms.t2.b.map(r => parseV(r.tegangan));
-      const avgP = bVals.every(v => v !== null)
-        ? bVals.reduce((s, v) => s! + ((v! * v!) / R_BEBAN) * 1000, 0)! / 3
+      const aVals = ms.t2.a.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const avgA = aVals.length > 0 ? aVals.reduce((s, v) => s + v, 0) / aVals.length : null;
+      const bVals = ms.t2.b.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const avgP = bVals.length > 0
+        ? bVals.reduce((s, v) => s + ((v * v) / R_BEBAN) * 1000, 0) / bVals.length
         : null;
+      const hasData = aVals.length > 0 || bVals.length > 0;
+
       return {
-        status: "Pengujian Beban", statusSub: "Tahap 2 sedang berlangsung",
-        config: "Seri 2 Reaktor", configSub: "+ Beban 10 kΩ",
-        v: avgA !== null ? `${fmt(avgA, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgA !== null ? "Hasil tanpa beban" : latestV !== null ? "Tegangan live API" : "Hasil tanpa beban",
-        d: avgP !== null ? `${fmt(avgP, 2)} mW` : "— mW", dSub: "Estimasi dari uji beban",
+        status: ms.t2.saved ? "Tahap 2 Selesai" : hasData ? "Pengujian Beban" : "—",
+        statusSub: ms.t2.saved ? "Tersimpan" : hasData ? "Tahap 2 sedang berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Seri 2 Reaktor" : "—",
+        configSub: hasData ? "+ Beban 10 kΩ" : "Belum dikonfigurasi",
+        v: avgA !== null ? `${fmt(avgA, 2)} V` : "— V",
+        vSub: avgA !== null ? "Hasil tanpa beban" : "Menunggu data",
+        d: avgP !== null ? `${fmt(avgP, 2)} mW` : "— mW",
+        dSub: avgP !== null ? "Estimasi dari uji beban" : "Menunggu data",
       };
     }
     if (p === 3) {
-      const vinVals = ms.t3.rows.map(r => parseV(r.tegangan));
-      const voutVals = ms.t3.rows.map(r => parseV((r as { vout?: string }).vout || ""));
-      const avgVin = vinVals.every(v => v !== null) ? vinVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
-      const avgVout = voutVals.every(v => v !== null) ? voutVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
+      const vinVals = ms.t3.rows.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const voutVals = ms.t3.rows.map(r => parseV((r as { vout?: string }).vout || "")).filter((v): v is number => v !== null);
+      const avgVin = vinVals.length > 0 ? vinVals.reduce((s, v) => s + v, 0) / vinVals.length : null;
+      const avgVout = voutVals.length > 0 ? voutVals.reduce((s, v) => s + v, 0) / voutVals.length : null;
+      const hasData = vinVals.length > 0 || voutVals.length > 0;
+
       return {
-        status: "Pengujian Step-Up", statusSub: "Tahap 3 sedang berlangsung",
-        config: "Seri 2 Reaktor\n→ Step-Up", configSub: "",
-        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgVin !== null ? "Tegangan masuk" : latestV !== null ? "Tegangan live API" : "Tegangan masuk",
-        d: avgVout !== null ? `${fmt(avgVout, 2)} V` : "— V", dSub: "Tegangan keluar",
+        status: ms.t3.saved ? "Tahap 3 Selesai" : hasData ? "Pengujian Step-Up" : "—",
+        statusSub: ms.t3.saved ? "Tersimpan" : hasData ? "Tahap 3 sedang berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Seri 2 Reaktor\n→ Step-Up" : "—",
+        configSub: hasData ? "DC-DC Step-Up" : "Belum dikonfigurasi",
+        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : "— V",
+        vSub: avgVin !== null ? "Tegangan masuk" : "Menunggu data",
+        d: avgVout !== null ? `${fmt(avgVout, 2)} V` : "— V",
+        dSub: avgVout !== null ? "Tegangan keluar" : "Menunggu data",
       };
     }
     // Phase 4
-    const vBats = ms.t4.a.map(r => parseV(r.vBaterai));
-    const lastBat = vBats.filter(v => v !== null).at(-1) ?? null;
-    const esp32On = ms.t4.b.some(r => r.esp32.toLowerCase().includes("menyala") || r.esp32.toLowerCase().includes("on"));
+    const vBats = ms.t4.a.map(r => parseV(r.vBaterai)).filter((v): v is number => v !== null);
+    const lastBat = vBats.at(-1) ?? null;
+    const esp32Tests = ms.t4.b.filter(r => r.esp32.trim() !== "");
+    const esp32On = esp32Tests.some(r => r.esp32.toLowerCase().includes("menyala") || r.esp32.toLowerCase().includes("on"));
+    const hasData = vBats.length > 0 || esp32Tests.length > 0;
+
     return {
-      status: "Penyimpanan &\nPemakaian", statusSub: "Tahap 4 sedang berlangsung",
-      config: "Step-Up → TP4056\n→ 18650 → ESP32", configSub: "",
-      v: lastBat !== null ? `${fmt(lastBat, 2)} V` : "— V", vSub: "Pemantauan 4A",
-      d: esp32On ? "MENYALA" : "—", dSub: "Wi-Fi & sensor aktif",
+      status: ms.t4.saved ? "Tahap 4 Selesai" : hasData ? "Penyimpanan &\nPemakaian" : "—",
+      statusSub: ms.t4.saved ? "Tersimpan" : hasData ? "Tahap 4 sedang berlangsung" : "Belum ada pengujian",
+      config: hasData ? "Step-Up → TP4056\n→ 18650 → ESP32" : "—",
+      configSub: hasData ? "Sistem Mandiri Energi" : "Belum dikonfigurasi",
+      v: lastBat !== null ? `${fmt(lastBat, 2)} V` : "— V",
+      vSub: lastBat !== null ? "Pemantauan 4A" : "Menunggu data",
+      d: esp32Tests.length > 0 ? (esp32On ? "MENYALA" : "TIDAK") : "—",
+      dSub: esp32Tests.length > 0 ? "Hasil uji ESP32" : "Menunggu data",
     };
   }, [ms]);
 
@@ -1371,13 +1380,27 @@ export default function MicroEnergyModule() {
         <SummaryCard icon={<Settings2 size={18} />} label="Konfigurasi Aktif" value={<span className="text-lg leading-tight whitespace-pre-line">{summaryCards.config}</span>} sub={summaryCards.configSub} />
         <SummaryCard
           icon={<Zap size={18} />}
-          label={isPhase3 ? "Vin Rata-rata" : isPhase4 ? "Tegangan Baterai" : "Tegangan Seri"}
+          label={
+            ms.activePhase === 1
+              ? "Tegangan Reaktor"
+              : ms.activePhase === 2
+              ? "Tegangan Seri"
+              : isPhase3
+              ? "Vin Rata-rata"
+              : "Tegangan Baterai"
+          }
           value={summaryCards.v}
           sub={summaryCards.vSub}
         />
         <SummaryCard
           icon={isPhase4 ? <Wifi size={18} /> : <BarChart3 size={18} />}
-          label={isPhase3 ? "Vout Rata-rata" : isPhase4 ? "Status ESP32" : "Daya Terukur"}
+          label={
+            isPhase3
+              ? "Vout Rata-rata"
+              : isPhase4
+              ? "Status ESP32"
+              : "Daya Terukur"
+          }
           value={summaryCards.d}
           sub={summaryCards.dSub}
         />
