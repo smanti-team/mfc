@@ -711,25 +711,25 @@ export default function DataPenelitianPage() {
     const mins = Math.round((diffMs % (1000 * 3600)) / (1000 * 60));
     const durasiStr = hrs > 0 ? `${hrs} jam ${mins} menit` : `${mins} menit`;
 
-    const latestTds = last.tds != null ? last.tds : 1068.89;
-    const latestVolt = last.voltage != null ? (last.voltage <= 20 ? last.voltage : last.voltage / 1000) : 0.20;
+    const latestTds = last.tds != null ? last.tds : 0;
+    const latestVolt = last.voltage != null ? (last.voltage <= 20 ? last.voltage : last.voltage / 1000) : 0;
 
     return {
       totalCount,
       durasiStr: durasiStr === "0 menit" ? "1 jam 03 menit" : durasiStr,
-      latestTdsStr: `${latestTds.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L`,
-      latestVoltStr: `${latestVolt.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} V`,
+      latestTdsStr: last.tds != null ? `${latestTds.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L` : "—",
+      latestVoltStr: last.voltage != null ? `${latestVolt.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} V` : "—",
     };
   }, [praSiklusList]);
 
   // Pra-Siklus Charts Data (ALL records)
   const praSiklusChartData = useMemo(() => {
     return praSiklusList.map((d) => {
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0;
       return {
         waktu: formatFullTime(d.timestamp),
         actualTime: `${formatDate(d.timestamp)} ${formatTime(d.timestamp)}`,
-        tds: d.tds != null ? Number(d.tds.toFixed(2)) : 956.84,
+        tds: d.tds != null ? Number(d.tds.toFixed(2)) : 0,
         voltage: Number(v.toFixed(3)),
       };
     });
@@ -739,7 +739,7 @@ export default function DataPenelitianPage() {
   const praSiklusAllRows = useMemo(() => {
     const sortedDesc = [...praSiklusList].reverse();
     return sortedDesc.map((d, i) => {
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : null;
       let catatan = "Uji pembacaan telemetri";
       if (i === 0) catatan = "Data terakhir sebelum ditinggalkan";
       else if (i === 1) catatan = "Uji pembacaan";
@@ -755,8 +755,8 @@ export default function DataPenelitianPage() {
       return {
         tanggal: formatDate(d.timestamp),
         jam: formatFullTime(d.timestamp),
-        tdsStr: `${(d.tds ?? 956.84).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L`,
-        voltageStr: `${v.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} V`,
+        tdsStr: d.tds != null ? `${d.tds.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mg/L` : "—",
+        voltageStr: v != null ? `${v.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} V` : "—",
         catatan,
       };
     });
@@ -767,10 +767,10 @@ export default function DataPenelitianPage() {
     const sortedDesc = [...praSiklusList].reverse();
 
     sortedDesc.forEach((d, i) => {
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0;
       const tgl = formatDate(d.timestamp);
       const jam = formatFullTime(d.timestamp).replace(/:/g, '.');
-      const tds = (d.tds ?? 956.84).toFixed(2).replace('.', ',');
+      const tds = d.tds != null ? d.tds.toFixed(2).replace('.', ',') : "—";
       const volt = v.toFixed(3).replace('.', ',');
 
       let catatan = "Uji pembacaan telemetri";

@@ -59,7 +59,7 @@ export function convertHistoryToCycleReadings(history: Reading[]): CycleReading[
     const tCurrent = parseTimestamp(d.timestamp).getTime();
     const diffHours = Math.round((tCurrent - t0) / (1000 * 3600));
     const hour = diffHours >= 0 ? diffHours : index * 3;
-    const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+    const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0;
 
     return {
       hour,

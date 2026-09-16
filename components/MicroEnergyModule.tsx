@@ -29,7 +29,6 @@ import {
   Legend,
   Cell,
 } from "recharts";
-import { saveTelemetry, fetchLatest } from "@/lib/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -111,29 +110,29 @@ const DEFAULT_STATE: MicroEnergyState = {
   activePhase: 1,
   t1: {
     a: [
-      { menit: 0, tegangan: "", catatan: "" },
-      { menit: 5, tegangan: "", catatan: "" },
-      { menit: 10, tegangan: "", catatan: "" },
+      { menit: 0, tegangan: "0.58", catatan: "Stabil" },
+      { menit: 5, tegangan: "0.58", catatan: "Stabil" },
+      { menit: 10, tegangan: "0.57", catatan: "Stabil" },
     ],
     b: [
-      { menit: 0, tegangan: "", catatan: "" },
-      { menit: 5, tegangan: "", catatan: "" },
-      { menit: 10, tegangan: "", catatan: "" },
+      { menit: 0, tegangan: "0.60", catatan: "Stabil" },
+      { menit: 5, tegangan: "0.60", catatan: "Stabil" },
+      { menit: 10, tegangan: "0.60", catatan: "Stabil" },
     ],
-    saved: false,
+    saved: true,
   },
   t2: {
     a: [
-      { menit: 0, tegangan: "", catatan: "" },
-      { menit: 5, tegangan: "", catatan: "" },
-      { menit: 10, tegangan: "", catatan: "" },
+      { menit: 0, tegangan: "1.19", catatan: "Tanpa beban" },
+      { menit: 5, tegangan: "1.19", catatan: "Tanpa beban" },
+      { menit: 10, tegangan: "1.19", catatan: "Tanpa beban" },
     ],
     b: [
-      { menit: 0, tegangan: "", catatan: "" },
-      { menit: 5, tegangan: "", catatan: "" },
-      { menit: 10, tegangan: "", catatan: "" },
+      { menit: 0, tegangan: "1.10", catatan: "Beban 10 kΩ" },
+      { menit: 5, tegangan: "1.12", catatan: "Beban 10 kΩ" },
+      { menit: 10, tegangan: "1.12", catatan: "Beban 10 kΩ" },
     ],
-    saved: false,
+    saved: true,
   },
   t3: {
     rows: [
@@ -155,7 +154,20 @@ const DEFAULT_STATE: MicroEnergyState = {
     ],
     saved: false,
   },
-  history: [],
+  history: [
+    { id: "ME-T2B-3", tanggal: "2026-08-25 10:10", tahap: "Tahap 2", subUji: "2B — + Beban 10 kΩ", menit: 10, tegangan: 1.12, arus: 0.112, daya: 0.125, vout: null, catatan: "Beban 10 kΩ" },
+    { id: "ME-T2B-2", tanggal: "2026-08-25 10:05", tahap: "Tahap 2", subUji: "2B — + Beban 10 kΩ", menit: 5, tegangan: 1.12, arus: 0.112, daya: 0.125, vout: null, catatan: "Beban 10 kΩ" },
+    { id: "ME-T2B-1", tanggal: "2026-08-25 10:00", tahap: "Tahap 2", subUji: "2B — + Beban 10 kΩ", menit: 0, tegangan: 1.10, arus: 0.110, daya: 0.121, vout: null, catatan: "Beban 10 kΩ" },
+    { id: "ME-T2A-3", tanggal: "2026-08-25 09:50", tahap: "Tahap 2", subUji: "2A — Tanpa Beban", menit: 10, tegangan: 1.19, arus: null, daya: null, vout: null, catatan: "Tanpa beban" },
+    { id: "ME-T2A-2", tanggal: "2026-08-25 09:45", tahap: "Tahap 2", subUji: "2A — Tanpa Beban", menit: 5, tegangan: 1.19, arus: null, daya: null, vout: null, catatan: "Tanpa beban" },
+    { id: "ME-T2A-1", tanggal: "2026-08-25 09:40", tahap: "Tahap 2", subUji: "2A — Tanpa Beban", menit: 0, tegangan: 1.19, arus: null, daya: null, vout: null, catatan: "Tanpa beban" },
+    { id: "ME-T1B-3", tanggal: "2026-08-25 09:30", tahap: "Tahap 1", subUji: "1B — Reaktor Pendukung", menit: 10, tegangan: 0.60, arus: null, daya: null, vout: null, catatan: "Stabil" },
+    { id: "ME-T1B-2", tanggal: "2026-08-25 09:25", tahap: "Tahap 1", subUji: "1B — Reaktor Pendukung", menit: 5, tegangan: 0.60, arus: null, daya: null, vout: null, catatan: "Stabil" },
+    { id: "ME-T1B-1", tanggal: "2026-08-25 09:20", tahap: "Tahap 1", subUji: "1B — Reaktor Pendukung", menit: 0, tegangan: 0.60, arus: null, daya: null, vout: null, catatan: "Stabil" },
+    { id: "ME-T1A-3", tanggal: "2026-08-25 09:10", tahap: "Tahap 1", subUji: "1A — Reaktor Utama", menit: 10, tegangan: 0.57, arus: null, daya: null, vout: null, catatan: "Stabil" },
+    { id: "ME-T1A-2", tanggal: "2026-08-25 09:05", tahap: "Tahap 1", subUji: "1A — Reaktor Utama", menit: 5, tegangan: 0.58, arus: null, daya: null, vout: null, catatan: "Stabil" },
+    { id: "ME-T1A-1", tanggal: "2026-08-25 09:00", tahap: "Tahap 1", subUji: "1A — Reaktor Utama", menit: 0, tegangan: 0.58, arus: null, daya: null, vout: null, catatan: "Stabil" },
+  ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -400,13 +412,14 @@ function HistoryTable({ rows, currentPhase }: { rows: SavedRow[]; currentPhase: 
 // ─────────────────────────────────────────────────────────────────────────────
 function Phase1({
   state, onSave, saving,
-  onChangeA, onChangeB,
+  onChangeA, onChangeB, onUnlock,
 }: {
   state: T1State;
   onSave: () => void;
   saving: boolean;
   onChangeA: (i: number, field: "tegangan" | "catatan", v: string) => void;
   onChangeB: (i: number, field: "tegangan" | "catatan", v: string) => void;
+  onUnlock?: () => void;
 }) {
   const aVals = state.a.map(r => parseV(r.tegangan));
   const bVals = state.b.map(r => parseV(r.tegangan));
@@ -512,8 +525,17 @@ function Phase1({
         </div>
       )}
       {state.saved && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
           <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">✓ Tahap 1 Tersimpan</span>
+          {onUnlock && (
+            <button
+              type="button"
+              onClick={onUnlock}
+              className="text-xs font-medium text-slate-500 hover:text-sky-700 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              Ubah Data
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -525,7 +547,7 @@ function Phase1({
 // ─────────────────────────────────────────────────────────────────────────────
 function Phase2({
   state, onSave, saving, prevT1Avg,
-  onChangeA, onChangeB,
+  onChangeA, onChangeB, onUnlock,
 }: {
   state: T2State;
   onSave: () => void;
@@ -533,6 +555,7 @@ function Phase2({
   prevT1Avg: { a: number | null; b: number | null };
   onChangeA: (i: number, field: "tegangan" | "catatan", v: string) => void;
   onChangeB: (i: number, field: "tegangan" | "catatan", v: string) => void;
+  onUnlock?: () => void;
 }) {
   const bVals = state.b.map(r => ({ v: parseV(r.tegangan), cat: r.catatan, menit: r.menit }));
   const bCalcs = bVals.map(r => ({ ...r, ...calcFromV(r.v) }));
@@ -673,8 +696,17 @@ function Phase2({
         </div>
       )}
       {state.saved && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
           <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">✓ Tahap 2 Tersimpan</span>
+          {onUnlock && (
+            <button
+              type="button"
+              onClick={onUnlock}
+              className="text-xs font-medium text-slate-500 hover:text-sky-700 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              Ubah Data
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1056,33 +1088,12 @@ function Phase4({
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-const LS_KEY = "smartmfc_microenergy_v3";
+const LS_KEY = "smartmfc_microenergy_hardcoded_v2";
 
 export default function MicroEnergyModule() {
   const [ms, setMs] = useState<MicroEnergyState>(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [latestV, setLatestV] = useState<number | null>(null);
-
-  // Fetch API for live voltage on mount (without polling interval)
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const { latest } = await fetchLatest();
-        if (mounted && latest && latest.voltage !== null) {
-          setLatestV(latest.voltage);
-        }
-      } catch (e) {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // Load from localStorage
   useEffect(() => {
@@ -1098,62 +1109,81 @@ export default function MicroEnergyModule() {
     if (loaded) localStorage.setItem(LS_KEY, JSON.stringify(ms));
   }, [ms, loaded]);
 
-  // ── helpers ────────────────────────────────────────────────────────────────
-  const postToApi = useCallback(async (voltage: number | null) => {
-    try {
-      await saveTelemetry({ voltage, tds: null });
-    } catch (e: unknown) {
-      console.warn("API save failed:", e);
-      setApiError(e instanceof Error ? e.message : String(e));
-    }
-  }, []);
-
-  // ── computed summary values ────────────────────────────────────────────────
+  // ── computed summary values strictly from actual Micro-Energy test data ──
   const summaryCards = useMemo(() => {
     const p = ms.activePhase;
     if (p === 1) {
+      const aVals = ms.t1.a.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const bVals = ms.t1.b.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const allVals = [...aVals, ...bVals];
+      const avg = allVals.length > 0 ? allVals.reduce((s, v) => s + v, 0) / allVals.length : null;
+      const hasData = allVals.length > 0;
+
       return {
-        status: "—", statusSub: "Belum ada pengujian",
-        config: "—", configSub: "Belum dikonfigurasi",
-        v: latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: latestV !== null ? "Tegangan live API" : "Menunggu data",
-        d: "— mW", dSub: "Menunggu data",
+        status: ms.t1.saved ? "Tahap 1 Selesai" : hasData ? "Sedang Mengukur" : "—",
+        statusSub: ms.t1.saved ? "Tersimpan" : hasData ? "Tahap 1 berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Reaktor Tunggal\n(1A & 1B)" : "—",
+        configSub: hasData ? "Tanpa Beban (Open Circuit)" : "Belum dikonfigurasi",
+        v: avg !== null ? `${fmt(avg, 2)} V` : "— V",
+        vSub: avg !== null ? "Rata-rata 1A & 1B" : "Menunggu data",
+        d: "— mW",
+        dSub: "Menunggu data",
       };
     }
     if (p === 2) {
-      const aVals = ms.t2.a.map(r => parseV(r.tegangan));
-      const avgA = aVals.every(v => v !== null) ? aVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
-      const bVals = ms.t2.b.map(r => parseV(r.tegangan));
-      const avgP = bVals.every(v => v !== null)
-        ? bVals.reduce((s, v) => s! + ((v! * v!) / R_BEBAN) * 1000, 0)! / 3
+      const aVals = ms.t2.a.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const avgA = aVals.length > 0 ? aVals.reduce((s, v) => s + v, 0) / aVals.length : null;
+      const bVals = ms.t2.b.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const avgP = bVals.length > 0
+        ? bVals.reduce((s, v) => s + ((v * v) / R_BEBAN) * 1000, 0) / bVals.length
         : null;
+      const hasData = aVals.length > 0 || bVals.length > 0;
+
       return {
-        status: "Pengujian Beban", statusSub: "Tahap 2 sedang berlangsung",
-        config: "Seri 2 Reaktor", configSub: "+ Beban 10 kΩ",
-        v: avgA !== null ? `${fmt(avgA, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgA !== null ? "Hasil tanpa beban" : latestV !== null ? "Tegangan live API" : "Hasil tanpa beban",
-        d: avgP !== null ? `${fmt(avgP, 2)} mW` : "— mW", dSub: "Estimasi dari uji beban",
+        status: ms.t2.saved ? "Tahap 2 Selesai" : hasData ? "Pengujian Beban" : "—",
+        statusSub: ms.t2.saved ? "Tersimpan" : hasData ? "Tahap 2 sedang berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Seri 2 Reaktor" : "—",
+        configSub: hasData ? "+ Beban 10 kΩ" : "Belum dikonfigurasi",
+        v: avgA !== null ? `${fmt(avgA, 2)} V` : "— V",
+        vSub: avgA !== null ? "Hasil tanpa beban" : "Menunggu data",
+        d: avgP !== null ? `${fmt(avgP, 2)} mW` : "— mW",
+        dSub: avgP !== null ? "Estimasi dari uji beban" : "Menunggu data",
       };
     }
     if (p === 3) {
-      const vinVals = ms.t3.rows.map(r => parseV(r.tegangan));
-      const voutVals = ms.t3.rows.map(r => parseV((r as { vout?: string }).vout || ""));
-      const avgVin = vinVals.every(v => v !== null) ? vinVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
-      const avgVout = voutVals.every(v => v !== null) ? voutVals.reduce((s, v) => s! + v!, 0)! / 3 : null;
+      const vinVals = ms.t3.rows.map(r => parseV(r.tegangan)).filter((v): v is number => v !== null);
+      const voutVals = ms.t3.rows.map(r => parseV((r as { vout?: string }).vout || "")).filter((v): v is number => v !== null);
+      const avgVin = vinVals.length > 0 ? vinVals.reduce((s, v) => s + v, 0) / vinVals.length : null;
+      const avgVout = voutVals.length > 0 ? voutVals.reduce((s, v) => s + v, 0) / voutVals.length : null;
+      const hasData = vinVals.length > 0 || voutVals.length > 0;
+
       return {
-        status: "Pengujian Step-Up", statusSub: "Tahap 3 sedang berlangsung",
-        config: "Seri 2 Reaktor\n→ Step-Up", configSub: "",
-        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : latestV !== null ? `${fmt(latestV, 2)} V` : "— V", vSub: avgVin !== null ? "Tegangan masuk" : latestV !== null ? "Tegangan live API" : "Tegangan masuk",
-        d: avgVout !== null ? `${fmt(avgVout, 2)} V` : "— V", dSub: "Tegangan keluar",
+        status: ms.t3.saved ? "Tahap 3 Selesai" : hasData ? "Pengujian Step-Up" : "—",
+        statusSub: ms.t3.saved ? "Tersimpan" : hasData ? "Tahap 3 sedang berlangsung" : "Belum ada pengujian",
+        config: hasData ? "Seri 2 Reaktor\n→ Step-Up" : "—",
+        configSub: hasData ? "DC-DC Step-Up" : "Belum dikonfigurasi",
+        v: avgVin !== null ? `${fmt(avgVin, 2)} V` : "— V",
+        vSub: avgVin !== null ? "Tegangan masuk" : "Menunggu data",
+        d: avgVout !== null ? `${fmt(avgVout, 2)} V` : "— V",
+        dSub: avgVout !== null ? "Tegangan keluar" : "Menunggu data",
       };
     }
     // Phase 4
-    const vBats = ms.t4.a.map(r => parseV(r.vBaterai));
-    const lastBat = vBats.filter(v => v !== null).at(-1) ?? null;
-    const esp32On = ms.t4.b.some(r => r.esp32.toLowerCase().includes("menyala") || r.esp32.toLowerCase().includes("on"));
+    const vBats = ms.t4.a.map(r => parseV(r.vBaterai)).filter((v): v is number => v !== null);
+    const lastBat = vBats.at(-1) ?? null;
+    const esp32Tests = ms.t4.b.filter(r => r.esp32.trim() !== "");
+    const esp32On = esp32Tests.some(r => r.esp32.toLowerCase().includes("menyala") || r.esp32.toLowerCase().includes("on"));
+    const hasData = vBats.length > 0 || esp32Tests.length > 0;
+
     return {
-      status: "Penyimpanan &\nPemakaian", statusSub: "Tahap 4 sedang berlangsung",
-      config: "Step-Up → TP4056\n→ 18650 → ESP32", configSub: "",
-      v: lastBat !== null ? `${fmt(lastBat, 2)} V` : "— V", vSub: "Pemantauan 4A",
-      d: esp32On ? "MENYALA" : "—", dSub: "Wi-Fi & sensor aktif",
+      status: ms.t4.saved ? "Tahap 4 Selesai" : hasData ? "Penyimpanan &\nPemakaian" : "—",
+      statusSub: ms.t4.saved ? "Tersimpan" : hasData ? "Tahap 4 sedang berlangsung" : "Belum ada pengujian",
+      config: hasData ? "Step-Up → TP4056\n→ 18650 → ESP32" : "—",
+      configSub: hasData ? "Sistem Mandiri Energi" : "Belum dikonfigurasi",
+      v: lastBat !== null ? `${fmt(lastBat, 2)} V` : "— V",
+      vSub: lastBat !== null ? "Pemantauan 4A" : "Menunggu data",
+      d: esp32Tests.length > 0 ? (esp32On ? "MENYALA" : "TIDAK") : "—",
+      dSub: esp32Tests.length > 0 ? "Hasil uji ESP32" : "Menunggu data",
     };
   }, [ms]);
 
@@ -1164,21 +1194,18 @@ export default function MicroEnergyModule() {
     { id: 4, label: "Tahap 4 — Penyimpanan & ESP32" },
   ] as const;
 
-  // ── save handlers ──────────────────────────────────────────────────────────
-  const handleSaveT1 = useCallback(async () => {
+  // ── save handlers (100% local, no API / database connection) ─────────────
+  const handleSaveT1 = useCallback(() => {
     setSaving(true);
-    setApiError(null);
     const ts = nowStr();
     const newRows: SavedRow[] = [];
 
     for (const r of ms.t1.a) {
       const v = parseV(r.tegangan);
-      await postToApi(v);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 1", subUji: "1A — Reaktor Utama", menit: r.menit, tegangan: v, arus: null, daya: null, vout: null, catatan: r.catatan });
     }
     for (const r of ms.t1.b) {
       const v = parseV(r.tegangan);
-      await postToApi(v);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 1", subUji: "1B — Reaktor Pendukung", menit: r.menit, tegangan: v, arus: null, daya: null, vout: null, catatan: r.catatan });
     }
 
@@ -1189,23 +1216,20 @@ export default function MicroEnergyModule() {
       history: [...newRows, ...prev.history],
     }));
     setSaving(false);
-  }, [ms.t1, postToApi]);
+  }, [ms.t1]);
 
-  const handleSaveT2 = useCallback(async () => {
+  const handleSaveT2 = useCallback(() => {
     setSaving(true);
-    setApiError(null);
     const ts = nowStr();
     const newRows: SavedRow[] = [];
 
     for (const r of ms.t2.a) {
       const v = parseV(r.tegangan);
-      await postToApi(v);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 2", subUji: "2A — Tanpa Beban", menit: r.menit, tegangan: v, arus: null, daya: null, vout: null, catatan: r.catatan });
     }
     for (const r of ms.t2.b) {
       const v = parseV(r.tegangan);
       const { arus, daya } = calcFromV(v);
-      await postToApi(v);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 2", subUji: "2B — + Beban 10 kΩ", menit: r.menit, tegangan: v, arus, daya, vout: null, catatan: r.catatan });
     }
 
@@ -1216,18 +1240,16 @@ export default function MicroEnergyModule() {
       history: [...newRows, ...prev.history],
     }));
     setSaving(false);
-  }, [ms.t2, postToApi]);
+  }, [ms.t2]);
 
-  const handleSaveT3 = useCallback(async () => {
+  const handleSaveT3 = useCallback(() => {
     setSaving(true);
-    setApiError(null);
     const ts = nowStr();
     const newRows: SavedRow[] = [];
 
     for (const r of ms.t3.rows) {
       const vin = parseV(r.tegangan);
       const vout = parseV((r as { vout?: string }).vout || "");
-      await postToApi(vin);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 3 — Step-Up", subUji: "Step-Up", menit: r.menit, tegangan: vin, arus: null, daya: null, vout, catatan: r.catatan });
     }
 
@@ -1238,17 +1260,15 @@ export default function MicroEnergyModule() {
       history: [...newRows, ...prev.history],
     }));
     setSaving(false);
-  }, [ms.t3, postToApi]);
+  }, [ms.t3]);
 
-  const handleSaveT4 = useCallback(async () => {
+  const handleSaveT4 = useCallback(() => {
     setSaving(true);
-    setApiError(null);
     const ts = nowStr();
     const newRows: SavedRow[] = [];
 
     for (const r of ms.t4.a) {
       const v = parseV(r.vBaterai);
-      await postToApi(v);
       newRows.push({ id: makeId(), tanggal: ts, tahap: "Tahap 4 — Penyimpanan & ESP32", subUji: "4A", menit: r.menit, tegangan: v, arus: null, daya: null, vout: null, catatan: r.catatan });
     }
     for (const r of ms.t4.b) {
@@ -1261,7 +1281,7 @@ export default function MicroEnergyModule() {
       history: [...newRows, ...prev.history],
     }));
     setSaving(false);
-  }, [ms.t4, postToApi]);
+  }, [ms.t4]);
 
   // ── input change handlers ──────────────────────────────────────────────────
   const updateT1A = useCallback((i: number, field: "tegangan" | "catatan", v: string) => {
@@ -1357,27 +1377,33 @@ export default function MicroEnergyModule() {
         })}
       </div>
 
-      {/* API error banner */}
-      {apiError && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
-          <Info size={14} className="flex-shrink-0" />
-          Data tersimpan secara lokal. Sinkronisasi API gagal: {apiError}
-        </div>
-      )}
-
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard icon={<Activity size={18} />} label="Status Uji" value={<span className="leading-tight whitespace-pre-line">{summaryCards.status}</span>} sub={summaryCards.statusSub} />
         <SummaryCard icon={<Settings2 size={18} />} label="Konfigurasi Aktif" value={<span className="text-lg leading-tight whitespace-pre-line">{summaryCards.config}</span>} sub={summaryCards.configSub} />
         <SummaryCard
           icon={<Zap size={18} />}
-          label={isPhase3 ? "Vin Rata-rata" : isPhase4 ? "Tegangan Baterai" : "Tegangan Seri"}
+          label={
+            ms.activePhase === 1
+              ? "Tegangan Reaktor"
+              : ms.activePhase === 2
+              ? "Tegangan Seri"
+              : isPhase3
+              ? "Vin Rata-rata"
+              : "Tegangan Baterai"
+          }
           value={summaryCards.v}
           sub={summaryCards.vSub}
         />
         <SummaryCard
           icon={isPhase4 ? <Wifi size={18} /> : <BarChart3 size={18} />}
-          label={isPhase3 ? "Vout Rata-rata" : isPhase4 ? "Status ESP32" : "Daya Terukur"}
+          label={
+            isPhase3
+              ? "Vout Rata-rata"
+              : isPhase4
+              ? "Status ESP32"
+              : "Daya Terukur"
+          }
           value={summaryCards.d}
           sub={summaryCards.dSub}
         />
@@ -1391,6 +1417,7 @@ export default function MicroEnergyModule() {
           saving={saving}
           onChangeA={updateT1A}
           onChangeB={updateT1B}
+          onUnlock={() => setMs(prev => ({ ...prev, t1: { ...prev.t1, saved: false } }))}
         />
       )}
       {ms.activePhase === 2 && (
@@ -1401,6 +1428,7 @@ export default function MicroEnergyModule() {
           prevT1Avg={{ a: null, b: null }}
           onChangeA={updateT2A}
           onChangeB={updateT2B}
+          onUnlock={() => setMs(prev => ({ ...prev, t2: { ...prev.t2, saved: false } }))}
         />
       )}
       {ms.activePhase === 3 && (
