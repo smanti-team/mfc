@@ -164,12 +164,12 @@ export default function Home() {
     const realTdsPoints = sortedHistory.map((d) => ({
       time: formatTime(d.timestamp),
       fullTime: formatFullDateTime(d.timestamp),
-      tds: d.tds != null ? Number(d.tds.toFixed(2)) : 1000,
+      tds: d.tds != null ? Number(d.tds.toFixed(2)) : 0,
       isPrediction: false,
     }));
 
     const realVoltPoints = sortedHistory.map((d) => {
-      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0.20;
+      const v = d.voltage != null ? (d.voltage <= 20 ? d.voltage : d.voltage / 1000) : 0;
       return {
         time: formatTime(d.timestamp),
         fullTime: formatFullDateTime(d.timestamp),
@@ -183,7 +183,7 @@ export default function Home() {
     if (regressionResult.isValid && sortedHistory.length > 0) {
       const lastReal = sortedHistory[sortedHistory.length - 1];
       const lastRealTimeMs = parseTimestamp(lastReal.timestamp).getTime();
-      const lastRealTds = lastReal.tds ?? 1068.89;
+      const lastRealTds = lastReal.tds ?? 0;
       const timeStepMs = 3 * 3600 * 1000;
       const slopePerStep = regressionResult.slopePerStep;
 
